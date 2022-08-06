@@ -11,14 +11,14 @@ typedef struct{
     char name[32];
 } client_t;
 
-int counter = 0;
+int counter_client = 0;
 
 client_t* create_client(struct sockaddr_in address, int connfd) 
 { 
   client_t *cli = (client_t *)malloc(sizeof(client_t));
   cli->address = address;
   cli->sockfd = connfd;
-  cli->uid = counter++;
+  cli->uid = counter_client++;
 
   return cli;
 }

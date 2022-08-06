@@ -10,8 +10,9 @@
 #include <sys/types.h>
 #include <signal.h>
 
-#include "./client.h"
+#include "./room.h"
 
+#define MAX_ROOMS 3
 #define MAX_CLIENTS 5
 #define BUFFER_SZ 2048
 
@@ -19,6 +20,7 @@ static _Atomic unsigned int cli_count = 0;
 static int uid = 10;
 
 client_t *clients[MAX_CLIENTS];
+room_t *rooms[MAX_ROOMS];
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void str_overwrite_stdout() 
@@ -108,6 +110,47 @@ void send_message(char *s, int uid)
     pthread_mutex_unlock(&clients_mutex);
 }
 
+/* Send message to all clients except sender */
+void send_message_to(char *s, int uid)
+{
+    pthread_mutex_lock(&clients_mutex);
+
+    for(int i=0; i<MAX_CLIENTS; ++i)
+    {
+        if(clients[i])
+        {
+            if(clients[i]->uid == uid)
+            {
+                if(write(clients[i]->sockfd, s, strlen(s)) < 0)
+                {
+                    perror("ERROR: write to descriptor failed");
+                    break;
+                }
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&clients_mutex);
+}
+
+void print_rooms(int uid) 
+{
+    char buff_out[BUFFER_SZ];
+
+    sprintf(buff_out, "Select your room:\n");
+    send_message_to(buff_out, uid);
+
+    for (int i = 0; i < MAX_ROOMS; i++)
+    {
+        if (rooms[i])
+        {
+            sprintf(buff_out, "%d) %s %d/%d.\n", i, rooms[i]->channelName, count_in_room(rooms[i]), MAX_CLIENTS_PER_ROOM);
+            send_message_to(buff_out, uid);
+        }
+    }
+
+}
+
 /* Handle all communication with the client */
 void *handle_client(void *arg)
 {
@@ -132,6 +175,8 @@ void *handle_client(void *arg)
 
     bzero(buff_out, BUFFER_SZ);
 
+    print_rooms(cli->uid);
+
     while(1)
     {
         if (leave_flag) 
@@ -139,31 +184,32 @@ void *handle_client(void *arg)
             break;
         }
 
-        int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
-        if (receive > 0)
-        {
-            if(strlen(buff_out) > 0)
-            {
-                send_message(buff_out, cli->uid);
 
-                str_trim_lf(buff_out, strlen(buff_out));
-                printf("%s -> %s\n", buff_out, cli->name);
-            }
-        } 
-        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
-        {
-            sprintf(buff_out, "%s has left\n", cli->name);
-            printf("%s", buff_out);
-            send_message(buff_out, cli->uid);
-            leave_flag = 1;
-        } 
-        else 
-        {
-            printf("ERROR: -1\n");
-            leave_flag = 1;
-        }
+        // int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
+        // if (receive > 0)
+        // {
+        //     if(strlen(buff_out) > 0)
+        //     {
+        //         send_message(buff_out, cli->uid);
 
-        bzero(buff_out, BUFFER_SZ);
+        //         str_trim_lf(buff_out, strlen(buff_out));
+        //         printf("%s -> %s\n", buff_out, cli->name);
+        //     }
+        // } 
+        // else if (receive == 0 || strcmp(buff_out, "exit") == 0)
+        // {
+        //     sprintf(buff_out, "%s has left\n", cli->name);
+        //     printf("%s", buff_out);
+        //     send_message(buff_out, cli->uid);
+        //     leave_flag = 1;
+        // } 
+        // else 
+        // {
+        //     printf("ERROR: -1\n");
+        //     leave_flag = 1;
+        // }
+
+        // bzero(buff_out, BUFFER_SZ);
     }
 
   /* Delete client from queue and yield thread */
@@ -174,6 +220,16 @@ void *handle_client(void *arg)
     pthread_detach(pthread_self());
 
     return NULL;
+}
+
+
+void create_rooms()
+{
+    for (int i = 0; i < MAX_ROOMS; i++)
+    {
+        rooms[i] = create_room("Test");
+    }
+    
 }
 
 int main(int argc, char **argv)
@@ -223,7 +279,7 @@ int main(int argc, char **argv)
     }
 
     printf("=== WELCOME TO THE CHATROOM ===\n");
-
+    create_rooms();
     while(1)
     {
         socklen_t clilen = sizeof(cli_addr);

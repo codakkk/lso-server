@@ -9,6 +9,7 @@
 #include "./client.h"
 
 #define MAX_CLIENTS_PER_ROOM 30
+pthread_mutex_t room_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct {
     int id;
@@ -19,13 +20,15 @@ typedef struct {
     char channelName[32];
 } room_t;
 
-int counter = 0;
+int counter_room = 0;
 
-room_t* create_room(client_t* client1, client_t* client2, char name[32]) ;
-int add_client(room_t* room, client_t* client);
-int find_empty_index(room_t* room);
+room_t* create_room(char name[32]) ;
+void add_client_room(room_t *room, client_t *cl);
+void remove_client_room(room_t *room, int uid);
+int count_in_room(room_t* room);
+
 
 void* handle_room(void* arg);
 
-
+#include "./room.c"
 #endif
