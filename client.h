@@ -12,6 +12,7 @@ typedef struct{
     int free;
     int chat_uid;
     int last_chat_uid;
+    int not_exit;
 } client_t;
 
 int counter_client = 0;
@@ -25,6 +26,7 @@ client_t* create_client(struct sockaddr_in address, int connfd)
   cli->free = 1;
   cli->chat_uid = -1;
   cli->last_chat_uid = -1;
+  cli->not_exit = 1;
 
   return cli;
 }

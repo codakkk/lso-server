@@ -161,7 +161,7 @@ void start_chat(client_t* cli)
     send_message_to(buff_out, cli->chat_uid);
     bzero(buff_out, BUFFER_SZ);
 
-    while (1)
+    while (cli->not_exit)
     {
         if (leave_flag)
         {
@@ -182,6 +182,7 @@ void start_chat(client_t* cli)
             printf("%s", buff_out);
             send_message_to(buff_out, cli->chat_uid);
             leave_flag = 1;
+            cli->not_exit = 0;
         } 
         else 
         {
@@ -194,36 +195,46 @@ void start_chat(client_t* cli)
 
 }
 
-int find_match(room_t* room, client_t* cli) 
+void find_match(room_t* room, client_t* cli) 
 {
-    pthread_mutex_lock(&room_mutex);
-    int res = 0;
-
-    for(int i=0; i < MAX_CLIENTS_PER_ROOM; ++i)
-    {
-        if(room->clients[i])
+    while (cli->free || cli->not_exit)
+    {   
+        if (!cli->not_exit)
         {
-            if(room->clients[i]->uid != cli->uid && room->clients[i]->free && room->clients[i]->uid != cli->last_chat_uid)
+            break;
+        }
+        
+        pthread_mutex_lock(&room_mutex);
+
+        for(int i=0; i < MAX_CLIENTS_PER_ROOM; ++i)
+        {
+            if(room->clients[i] && cli->free)
             {
-                // Set uid of the client matched for the chat
-                room->clients[i]->chat_uid = cli->uid;
-                cli->chat_uid = room->clients[i]->uid;
+                if(room->clients[i]->uid != cli->uid && room->clients[i]->free && room->clients[i]->uid != cli->last_chat_uid)
+                {
+                    // Set uid of the client matched for the chat
+                    room->clients[i]->chat_uid = cli->uid;
+                    cli->chat_uid = room->clients[i]->uid;
 
-                // Set uid of the last client matched
-                room->clients[i]->last_chat_uid = cli->uid;
-                cli->last_chat_uid = room->clients[i]->uid;
+                    // Set uid of the last client matched
+                    room->clients[i]->last_chat_uid = cli->uid;
+                    cli->last_chat_uid = room->clients[i]->uid;
 
-                // Set clients not free
-                room->clients[i]->free = 0;
-                cli->free = 0;
+                    // Set clients not free
+                    room->clients[i]->free = 0;
+                    cli->free = 0;
 
-                res = 1;
+                }
             }
         }
-    }
 
-    pthread_mutex_unlock(&room_mutex);
-    return res;
+        pthread_mutex_unlock(&room_mutex);
+
+        if (!cli->free)
+        {
+            start_chat(cli);
+        }
+    }
 }
 
 void handle_chat(room_t* room, client_t* cli)
@@ -241,10 +252,7 @@ void handle_chat(room_t* room, client_t* cli)
             break;
         }
 
-        if(find_match(room, cli))
-        {
-            start_chat(cli);
-        }
+        find_match(room, cli);
 
         int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
         if (receive > 0)
