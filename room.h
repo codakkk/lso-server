@@ -27,6 +27,8 @@ void add_client_room(room_t *room, client_t *cl);
 void remove_client_room(room_t *room, int uid);
 int count_in_room(room_t* room);
 
+void handle_chat();
+
 
 void* handle_room(void* arg);
 

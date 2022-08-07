@@ -23,32 +23,32 @@ client_t *clients[MAX_CLIENTS];
 room_t *rooms[MAX_ROOMS];
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void str_overwrite_stdout() 
+void str_overwrite_stdout()
 {
     printf("\r%s", "> ");
     fflush(stdout);
 }
 
-void str_trim_lf (char* arr, int length) 
+void str_trim_lf(char *arr, int length)
 {
-  int i;
-  for (i = 0; i < length; i++) 
-  { // trim \n
-    if (arr[i] == '\n') 
-    {
-      arr[i] = '\0';
-      break;
+    int i;
+    for (i = 0; i < length; i++)
+    { // trim \n
+        if (arr[i] == '\n')
+        {
+            arr[i] = '\0';
+            break;
+        }
     }
-  }
 }
 
 void print_client_addr(struct sockaddr_in addr)
 {
     printf("%d.%d.%d.%d",
-        addr.sin_addr.s_addr & 0xff,
-        (addr.sin_addr.s_addr & 0xff00) >> 8,
-        (addr.sin_addr.s_addr & 0xff0000) >> 16,
-        (addr.sin_addr.s_addr & 0xff000000) >> 24);
+           addr.sin_addr.s_addr & 0xff,
+           (addr.sin_addr.s_addr & 0xff00) >> 8,
+           (addr.sin_addr.s_addr & 0xff0000) >> 16,
+           (addr.sin_addr.s_addr & 0xff000000) >> 24);
 }
 
 /* Add clients to queue */
@@ -56,9 +56,9 @@ void queue_add(client_t *cl)
 {
     pthread_mutex_lock(&clients_mutex);
 
-    for(int i=0; i < MAX_CLIENTS; ++i)
+    for (int i = 0; i < MAX_CLIENTS; ++i)
     {
-        if(!clients[i])
+        if (!clients[i])
         {
             clients[i] = cl;
             break;
@@ -69,14 +69,15 @@ void queue_add(client_t *cl)
 }
 
 /* Remove clients to queue */
-void queue_remove(int uid){
+void queue_remove(int uid)
+{
     pthread_mutex_lock(&clients_mutex);
 
-    for(int i=0; i < MAX_CLIENTS; ++i)
+    for (int i = 0; i < MAX_CLIENTS; ++i)
     {
-        if(clients[i])
+        if (clients[i])
         {
-            if(clients[i]->uid == uid)
+            if (clients[i]->uid == uid)
             {
                 clients[i] = NULL;
                 break;
@@ -92,13 +93,13 @@ void send_message(char *s, int uid)
 {
     pthread_mutex_lock(&clients_mutex);
 
-    for(int i=0; i<MAX_CLIENTS; ++i)
+    for (int i = 0; i < MAX_CLIENTS; ++i)
     {
-        if(clients[i])
+        if (clients[i])
         {
-            if(clients[i]->uid != uid)
+            if (clients[i]->uid != uid)
             {
-                if(write(clients[i]->sockfd, s, strlen(s)) < 0)
+                if (write(clients[i]->sockfd, s, strlen(s)) < 0)
                 {
                     perror("ERROR: write to descriptor failed");
                     break;
@@ -115,13 +116,13 @@ void send_message_to(char *s, int uid)
 {
     pthread_mutex_lock(&clients_mutex);
 
-    for(int i=0; i<MAX_CLIENTS; ++i)
+    for (int i = 0; i < MAX_CLIENTS; ++i)
     {
-        if(clients[i])
+        if (clients[i])
         {
-            if(clients[i]->uid == uid)
+            if (clients[i]->uid == uid)
             {
-                if(write(clients[i]->sockfd, s, strlen(s)) < 0)
+                if (write(clients[i]->sockfd, s, strlen(s)) < 0)
                 {
                     perror("ERROR: write to descriptor failed");
                     break;
@@ -133,7 +134,7 @@ void send_message_to(char *s, int uid)
     pthread_mutex_unlock(&clients_mutex);
 }
 
-void print_rooms(int uid) 
+void print_rooms(int uid)
 {
     char buff_out[BUFFER_SZ];
 
@@ -148,6 +149,125 @@ void print_rooms(int uid)
             send_message_to(buff_out, uid);
         }
     }
+}
+
+void start_chat(client_t* cli)
+{
+    
+    char buff_out[BUFFER_SZ];
+    int leave_flag = 0;
+
+    sprintf(buff_out, "%s Matched with\n", cli->name);
+    send_message_to(buff_out, cli->chat_uid);
+    bzero(buff_out, BUFFER_SZ);
+
+    while (1)
+    {
+        if (leave_flag)
+        {
+            break;
+        }
+
+        int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
+        if (receive > 0)
+        {
+            if(strlen(buff_out) > 0)
+            {
+                send_message_to(buff_out, cli->chat_uid);
+            }
+        } 
+        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
+        {
+            sprintf(buff_out, "%s has left\n", cli->name);
+            printf("%s", buff_out);
+            send_message_to(buff_out, cli->chat_uid);
+            leave_flag = 1;
+        } 
+        else 
+        {
+            printf("ERROR: -1\n");
+            leave_flag = 1;
+        }
+
+        bzero(buff_out, BUFFER_SZ);
+    }
+
+}
+
+int find_match(room_t* room, client_t* cli) 
+{
+    pthread_mutex_lock(&room_mutex);
+    int res = 0;
+
+    for(int i=0; i < MAX_CLIENTS_PER_ROOM; ++i)
+    {
+        if(room->clients[i])
+        {
+            if(room->clients[i]->uid != cli->uid && room->clients[i]->free && room->clients[i]->uid != cli->last_chat_uid)
+            {
+                // Set uid of the client matched for the chat
+                room->clients[i]->chat_uid = cli->uid;
+                cli->chat_uid = room->clients[i]->uid;
+
+                // Set uid of the last client matched
+                room->clients[i]->last_chat_uid = cli->uid;
+                cli->last_chat_uid = room->clients[i]->uid;
+
+                // Set clients not free
+                room->clients[i]->free = 0;
+                cli->free = 0;
+
+                res = 1;
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&room_mutex);
+    return res;
+}
+
+void handle_chat(room_t* room, client_t* cli)
+{
+    char buff_out[BUFFER_SZ];
+    int leave_flag = 0;
+
+    printf("%s has joined the room %s\n", cli->name, room->channelName);
+
+
+    while (1)
+    {
+        if (leave_flag)
+        {
+            break;
+        }
+
+        if(find_match(room, cli))
+        {
+            start_chat(cli);
+        }
+
+        int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
+        if (receive > 0)
+        {
+            if (strlen(buff_out) > 0)
+            {
+                send_message_to("Waiting...\n", cli->uid);
+            }
+        }
+        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
+        {
+            printf("%s has left the room %s\n", cli->name, room->channelName);
+            leave_flag = 1;
+        }
+        else
+        {
+            printf("ERROR: -1\n");
+            leave_flag = 1;
+        }
+
+        bzero(buff_out, BUFFER_SZ);
+    }
+    remove_client_room(room, cli->uid);
 
 }
 
@@ -162,57 +282,66 @@ void *handle_client(void *arg)
     client_t *cli = (client_t *)arg;
 
     // Name
-    if(recv(cli->sockfd, name, 32, 0) <= 0 || strlen(name) <  2 || strlen(name) >= 32-1)
+    if (recv(cli->sockfd, name, 32, 0) <= 0 || strlen(name) < 2 || strlen(name) >= 32 - 1)
     {
         printf("Didn't enter the name.\n");
         leave_flag = 1;
-    } else{
+    }
+    else
+    {
         strcpy(cli->name, name);
-        sprintf(buff_out, "%s has joined\n", cli->name);
-        printf("%s", buff_out);
-        send_message(buff_out, cli->uid);
+        printf("%s has joined\n", cli->name);
     }
 
     bzero(buff_out, BUFFER_SZ);
 
     print_rooms(cli->uid);
 
-    while(1)
+    while (1)
     {
-        if (leave_flag) 
+        if (leave_flag)
         {
             break;
         }
 
+        int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
+        if (receive > 0)
+        {
+            if (strlen(buff_out) > 0)
+            {
+                if (strcmp(buff_out, "0") || strcmp(buff_out, "1") || strcmp(buff_out, "2"))
+                {
+                    int selected_room = atoi(buff_out);
+                    add_client_room(rooms[selected_room], cli);
+                    // printf("Room selected %d %s\n", selected_room, buff_out);
+                    send_message_to("Waiting for pairing\n", cli->uid);
+                    bzero(buff_out, BUFFER_SZ);
+                    handle_chat(rooms[selected_room], cli);
+                    leave_flag = 1;
+                }
+                else
+                {
+                    send_message_to("No room founded, retry\n", cli->uid);
+                }
+            }
+        }
+        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
+        {
+            sprintf(buff_out, "%s has left\n", cli->name);
+            printf("%s", buff_out);
+            send_message(buff_out, cli->uid);
+            leave_flag = 1;
+        }
+        else
+        {
+            printf("ERROR: -1\n");
+            leave_flag = 1;
+        }
 
-        // int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
-        // if (receive > 0)
-        // {
-        //     if(strlen(buff_out) > 0)
-        //     {
-        //         send_message(buff_out, cli->uid);
-
-        //         str_trim_lf(buff_out, strlen(buff_out));
-        //         printf("%s -> %s\n", buff_out, cli->name);
-        //     }
-        // } 
-        // else if (receive == 0 || strcmp(buff_out, "exit") == 0)
-        // {
-        //     sprintf(buff_out, "%s has left\n", cli->name);
-        //     printf("%s", buff_out);
-        //     send_message(buff_out, cli->uid);
-        //     leave_flag = 1;
-        // } 
-        // else 
-        // {
-        //     printf("ERROR: -1\n");
-        //     leave_flag = 1;
-        // }
-
-        // bzero(buff_out, BUFFER_SZ);
+        bzero(buff_out, BUFFER_SZ);
     }
 
-  /* Delete client from queue and yield thread */
+    /* Delete client from queue and yield thread */
     close(cli->sockfd);
     queue_remove(cli->uid);
     free(cli);
@@ -222,19 +351,21 @@ void *handle_client(void *arg)
     return NULL;
 }
 
-
 void create_rooms()
 {
-    for (int i = 0; i < MAX_ROOMS; i++)
-    {
-        rooms[i] = create_room("Test");
-    }
-    
+    // for (int i = 0; i < MAX_ROOMS; i++)
+    // {
+    //     rooms[i] = create_room("Test");
+    // }
+    rooms[0] = create_room("Aldo, Giovanni e Giacomo");
+    rooms[1] = create_room("Sport");
+    rooms[2] = create_room("Barzellette!");
+
 }
 
 int main(int argc, char **argv)
 {
-    if(argc != 2)
+    if (argc != 2)
     {
         printf("Usage: %s <port>\n", argv[0]);
         return EXIT_FAILURE;
@@ -258,21 +389,21 @@ int main(int argc, char **argv)
     /* Ignore pipe signals */
     signal(SIGPIPE, SIG_IGN);
 
-    if(setsockopt(listenfd, SOL_SOCKET,(SO_REUSEPORT | SO_REUSEADDR),(char*)&option,sizeof(option)) < 0)
+    if (setsockopt(listenfd, SOL_SOCKET, (SO_REUSEPORT | SO_REUSEADDR), (char *)&option, sizeof(option)) < 0)
     {
         perror("ERROR: setsockopt failed");
         return EXIT_FAILURE;
     }
 
     /* Bind */
-    if(bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) 
+    if (bind(listenfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("ERROR: Socket binding failed");
         return EXIT_FAILURE;
     }
 
-  /* Listen */
-    if (listen(listenfd, 10) < 0) 
+    /* Listen */
+    if (listen(listenfd, 10) < 0)
     {
         perror("ERROR: Socket listening failed");
         return EXIT_FAILURE;
@@ -280,13 +411,13 @@ int main(int argc, char **argv)
 
     printf("=== WELCOME TO THE CHATROOM ===\n");
     create_rooms();
-    while(1)
+    while (1)
     {
         socklen_t clilen = sizeof(cli_addr);
-        connfd = accept(listenfd, (struct sockaddr*)&cli_addr, &clilen);
+        connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
 
         /* Check if max clients is reached */
-        if((cli_count + 1) == MAX_CLIENTS)
+        if ((cli_count + 1) == MAX_CLIENTS)
         {
             printf("Max clients reached. Rejected: ");
             print_client_addr(cli_addr);
@@ -300,7 +431,7 @@ int main(int argc, char **argv)
 
         /* Add client to the queue and fork thread */
         queue_add(cli);
-        pthread_create(&tid, NULL, &handle_client, (void*)cli);
+        pthread_create(&tid, NULL, &handle_client, (void *)cli);
 
         /* Reduce CPU usage */
         sleep(1);

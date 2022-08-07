@@ -9,6 +9,9 @@ typedef struct{
     int sockfd;
     int uid;
     char name[32];
+    int free;
+    int chat_uid;
+    int last_chat_uid;
 } client_t;
 
 int counter_client = 0;
@@ -19,6 +22,9 @@ client_t* create_client(struct sockaddr_in address, int connfd)
   cli->address = address;
   cli->sockfd = connfd;
   cli->uid = counter_client++;
+  cli->free = 1;
+  cli->chat_uid = -1;
+  cli->last_chat_uid = -1;
 
   return cli;
 }
