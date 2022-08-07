@@ -176,9 +176,9 @@ void start_chat(client_t* cli)
                 send_message_to(buff_out, cli->chat_uid);
             }
         } 
-        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
+        else if (receive == 0 || strcmp(buff_out, "exit") == 0 || strcmp(buff_out, "exit_room") == 0)
         {
-            sprintf(buff_out, "%s has left\n", cli->name);
+            sprintf(buff_out, "exit");
             printf("%s", buff_out);
             send_message_to(buff_out, cli->chat_uid);
             leave_flag = 1;

@@ -62,6 +62,10 @@ void recv_msg_handler() {
   while (1) {
         int receive = recv(sockfd, message, LENGTH, 0);
     if (receive > 0) {
+      if(strcmp(message, "exit") == 0)
+      {
+        catch_ctrl_c_and_exit(2);
+      }
       printf("%s", message);
       str_overwrite_stdout();
     } else if (receive == 0) {
