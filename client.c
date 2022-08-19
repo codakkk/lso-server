@@ -37,7 +37,7 @@ void catch_ctrl_c_and_exit(int sig) {
 
 void send_msg_handler() {
   unsigned char message[LENGTH] = {};
-    unsigned char buffer[3000] = {};
+  unsigned char buffer[3000] = {};
 
   while(1) {
     str_overwrite_stdout();
@@ -51,7 +51,7 @@ void send_msg_handler() {
       send(sockfd, buffer, strlen(buffer), 0);
     }
 
-        bzero(message, LENGTH);
+    bzero(message, LENGTH);
     bzero(buffer, LENGTH + 32);
   }
   catch_ctrl_c_and_exit(2);
@@ -59,21 +59,33 @@ void send_msg_handler() {
 
 void recv_msg_handler() {
     char message[LENGTH] = {};
-  while (1) {
-        int receive = recv(sockfd, message, LENGTH, 0);
-    if (receive > 0) {
-      if(strcmp(message, "exit") == 0)
+  while (1) 
+  {
+    int receive = recv(sockfd, message, LENGTH, 0);
+    if (receive > 0) 
+    {
+      if(strcmp(message, "exit") == 0 || strcmp(message, "exit_chat\n\0") == 0)
       {
-        catch_ctrl_c_and_exit(2);
+        printf("Chat finished, Waiting new pairing...\n");
+        unsigned char buffer[3000] = {};
+        sprintf(buffer, "exit_chat_AKW");
+        send(sockfd, buffer, strlen(buffer), 0);
       }
-      printf("%s", message);
+      else
+      {
+        printf("%s", message);
+      }
       str_overwrite_stdout();
-    } else if (receive == 0) {
-            break;
-    } else {
-            // -1
-        }
-        memset(message, 0, sizeof(message));
+    } 
+    else if (receive == 0) 
+    {
+      break;
+    } 
+    else 
+    {
+      printf("Unexpected else\n");
+    }
+    memset(message, 0, sizeof(message));
   }
 }
 

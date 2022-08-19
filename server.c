@@ -111,21 +111,24 @@ void send_message(char *s, int uid)
     pthread_mutex_unlock(&clients_mutex);
 }
 
-/* Send message to all clients except sender */
+/* Send message to a client */
 void send_message_to(char *s, int uid)
 {
     pthread_mutex_lock(&clients_mutex);
 
-    for (int i = 0; i < MAX_CLIENTS; ++i)
+    if (uid != -1)
     {
-        if (clients[i])
+        for (int i = 0; i < MAX_CLIENTS; ++i)
         {
-            if (clients[i]->uid == uid)
+            if (clients[i])
             {
-                if (write(clients[i]->sockfd, s, strlen(s)) < 0)
+                if (clients[i]->uid == uid)
                 {
-                    perror("ERROR: write to descriptor failed");
-                    break;
+                    if (write(clients[i]->sockfd, s, strlen(s)) < 0)
+                    {
+                        perror("ERROR: write to descriptor failed");
+                        break;
+                    }
                 }
             }
         }
@@ -157,7 +160,7 @@ void start_chat(client_t* cli)
     char buff_out[BUFFER_SZ];
     int leave_flag = 0;
 
-    sprintf(buff_out, "%s Matched with\n", cli->name);
+    sprintf(buff_out, "Matched with %s\n", cli->name);
     send_message_to(buff_out, cli->chat_uid);
     bzero(buff_out, BUFFER_SZ);
 
@@ -165,6 +168,8 @@ void start_chat(client_t* cli)
     {
         if (leave_flag)
         {
+            bzero(buff_out, BUFFER_SZ);
+            cli->chat_uid = -1;
             break;
         }
 
@@ -173,16 +178,43 @@ void start_chat(client_t* cli)
         {
             if(strlen(buff_out) > 0)
             {
-                send_message_to(buff_out, cli->chat_uid);
+                if ( strcmp(buff_out, "exit_room\n\0") == 0 
+                    || strcmp(buff_out, "exit_chat\n\0") == 0
+                    || strcmp(buff_out, "exit_chat_AKW\0") == 0)
+                {    
+                    if (strcmp(buff_out, "exit_chat\n\0") == 0 || strcmp(buff_out, "exit_chat_AKW\0") == 0)
+                    {
+                        printf("%s exit form chat\n", cli->name);
+                        leave_flag = 1; 
+                        if (strcmp(buff_out, "exit_chat\n\0") == 0)
+                        {
+                            send_message_to(buff_out, cli->chat_uid);
+                        }
+                        cli->chat_uid = -1;
+                        cli->free = 1;
+                    }
+                    else if (strcmp(buff_out, "exit_room\n\0") == 0)
+                    {
+                        printf("%s exit form room", cli->name);
+                        leave_flag = 1;
+                        cli->chat_uid = -1;
+                        cli->not_exit = 0;
+                    }
+                    
+                }
+                else
+                {
+                    send_message_to(buff_out, cli->chat_uid);
+                }
             }
         } 
-        else if (receive == 0 || strcmp(buff_out, "exit") == 0 || strcmp(buff_out, "exit_room") == 0)
+        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
         {
+            printf("%s exit\n", cli->name);
             sprintf(buff_out, "exit");
-            printf("%s", buff_out);
-            send_message_to(buff_out, cli->chat_uid);
             leave_flag = 1;
             cli->not_exit = 0;
+            send_message_to(buff_out, cli->chat_uid);
         } 
         else 
         {
@@ -199,6 +231,7 @@ void find_match(room_t* room, client_t* cli)
 {
     while (cli->free || cli->not_exit)
     {   
+        send_message_to("Searching match 1\n", cli->uid);
         if (!cli->not_exit)
         {
             break;
@@ -223,12 +256,13 @@ void find_match(room_t* room, client_t* cli)
                     // Set clients not free
                     room->clients[i]->free = 0;
                     cli->free = 0;
-
+                    printf("Matched %s and %s\n", cli->name, room->clients[i]->name);
                 }
             }
         }
 
         pthread_mutex_unlock(&room_mutex);
+        send_message_to("Searching match 2\n", cli->uid);
 
         if (!cli->free)
         {
@@ -247,33 +281,12 @@ void handle_chat(room_t* room, client_t* cli)
 
     while (1)
     {
-        if (leave_flag)
+        find_match(room, cli);
+
+        if (!cli->not_exit)
         {
             break;
         }
-
-        find_match(room, cli);
-
-        int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
-        if (receive > 0)
-        {
-            if (strlen(buff_out) > 0)
-            {
-                send_message_to("Waiting...\n", cli->uid);
-            }
-        }
-        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
-        {
-            printf("%s has left the room %s\n", cli->name, room->channelName);
-            leave_flag = 1;
-        }
-        else
-        {
-            printf("ERROR: -1\n");
-            leave_flag = 1;
-        }
-
-        bzero(buff_out, BUFFER_SZ);
     }
     remove_client_room(room, cli->uid);
 
@@ -309,6 +322,7 @@ void *handle_client(void *arg)
     {
         if (leave_flag)
         {
+            printf("%s has left the server\n", cli->name);
             break;
         }
 
@@ -335,9 +349,6 @@ void *handle_client(void *arg)
         }
         else if (receive == 0 || strcmp(buff_out, "exit") == 0)
         {
-            sprintf(buff_out, "%s has left\n", cli->name);
-            printf("%s", buff_out);
-            send_message(buff_out, cli->uid);
             leave_flag = 1;
         }
         else
@@ -361,14 +372,9 @@ void *handle_client(void *arg)
 
 void create_rooms()
 {
-    // for (int i = 0; i < MAX_ROOMS; i++)
-    // {
-    //     rooms[i] = create_room("Test");
-    // }
     rooms[0] = create_room("Aldo, Giovanni e Giacomo");
     rooms[1] = create_room("Sport");
     rooms[2] = create_room("Barzellette!");
-
 }
 
 int main(int argc, char **argv)
