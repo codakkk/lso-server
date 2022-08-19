@@ -231,7 +231,6 @@ void find_match(room_t* room, client_t* cli)
 {
     while (cli->free || cli->not_exit)
     {   
-        send_message_to("Searching match 1\n", cli->uid);
         if (!cli->not_exit)
         {
             break;
@@ -262,7 +261,6 @@ void find_match(room_t* room, client_t* cli)
         }
 
         pthread_mutex_unlock(&room_mutex);
-        send_message_to("Searching match 2\n", cli->uid);
 
         if (!cli->free)
         {
