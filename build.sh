@@ -1,4 +1,4 @@
 #!/bin/bash
 
-gcc -pthread -g -o client client.c
-gcc -pthread -g -o server server.c client.h
+gcc -pthread -g -o c ./client/main.c
+gcc -pthread -g -o s ./server/main.c
