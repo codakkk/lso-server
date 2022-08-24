@@ -11,6 +11,11 @@
     "*.tcc": "c",
     "cstdbool": "c",
     "cstdint": "c",
-    "typeinfo": "c"
+    "typeinfo": "c",
+    "stdlib.h": "c",
+    "pthread.h": "c",
+    "string.h": "c",
+    "room_pool.h": "c",
+    "client_pool.h": "c"
   }
 }

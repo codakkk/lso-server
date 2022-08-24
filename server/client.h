@@ -5,32 +5,30 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-
-typedef struct {
+struct client_t {
     struct sockaddr_in address;
+
+    struct client_t* chat_with;
+    struct client_t* last_chat_with;
+    struct room_t* room;
+
+    pthread_t thread;
+
     int sockfd;
     int uid;
     char name[32];
-    bool is_free;
-    int chat_uid;
-    int last_chat_uid;
-    int not_exit;
-} client_t;
+};
 
-int counter_client = 0;
 
-client_t* create_client(struct sockaddr_in address, int connfd) 
-{ 
-  client_t *cli = (client_t *)malloc(sizeof(client_t));
-  cli->address = address;
-  cli->sockfd = connfd;
-  cli->uid = counter_client++;
-  cli->is_free = 1;
-  cli->chat_uid = -1;
-  cli->last_chat_uid = -1;
-  cli->not_exit = 1;
+struct client_t* create_client(struct sockaddr_in address, int connfd);
 
-  return cli;
-}
+bool client_send_message(struct client_t* client, char* message);
+void client_enter_room(struct client_t* client, struct room_t* room);
 
+void client_leave_chat(struct client_t* client);
+void client_leave_room(struct client_t* client);
+
+bool client_is_free(struct client_t* client);
+
+void* _client_handler(void* args);
 #endif
