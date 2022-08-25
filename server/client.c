@@ -12,7 +12,7 @@
 
 int counter_client = 0;
 
-struct client_t* create_client(struct sockaddr_in address, int connfd) 
+struct client_t* client_create(struct sockaddr_in address, int connfd) 
 { 
   struct client_t *cli = (struct client_t *)malloc(sizeof(struct client_t));
   cli->address = address;
@@ -108,7 +108,11 @@ void* _client_handler(void* args)
     {
       if(strlen(msgBuffer) > 0)
       {
-        if(client->room == NULL)
+        if(strcmp(msgBuffer, "/exit\n") == 0)
+        {
+          leaveFlag = true;
+        }
+        else if(client->room == NULL)
         {
           if(strcmp(msgBuffer, "0"))
           {
@@ -124,12 +128,12 @@ void* _client_handler(void* args)
           }
         }
 
-        if(client->room != NULL && strcmp(msgBuffer, "/exitroom\n") == 0) 
+        else if(client->room != NULL && strcmp(msgBuffer, "/exitroom\n") == 0) 
         {
           room_remove_client(client->room, client);
         }
 
-        if(client->chat_with != NULL) 
+        else if(client->chat_with != NULL) 
         {
           if(strcmp(msgBuffer, "/exitchat\n") == 0) 
           {
@@ -148,7 +152,7 @@ void* _client_handler(void* args)
         }
       }
     }
-    else if(numBytesRead == 0 || strcmp(msgBuffer, "/exit") == 0)
+    else if(numBytesRead == 0)
     {
       leaveFlag = true;
     }
@@ -166,8 +170,8 @@ void* _client_handler(void* args)
 
   client_pool_remove(client);
 
-  close(client->sockfd);
   pthread_detach(pthread_self());
 
+  close(client->sockfd);
   free(client);
 }

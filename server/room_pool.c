@@ -50,8 +50,7 @@ void room_pool_send_all(struct client_t* client)
 {
   char buff_out[4096];
 
-  sprintf(buff_out, "Select your room:\n");
-  client_send_message(client, buff_out);
+  client_send_message(client, "Select your room:\n");
 
   for (int i = 0; i < MAX_ROOMS; i++)
   {

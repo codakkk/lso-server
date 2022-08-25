@@ -21,7 +21,7 @@ struct client_t {
 };
 
 
-struct client_t* create_client(struct sockaddr_in address, int connfd);
+struct client_t* client_create(struct sockaddr_in address, int connfd);
 
 void client_lock(struct client_t* client);
 void client_unlock(struct client_t* client);

@@ -109,7 +109,7 @@ int main(int argc, char **argv)
         }
         
         client_pool_lock();
-        client_pool_add(create_client(cli_addr, connfd));
+        client_pool_add(client_create(cli_addr, connfd));
         client_pool_unlock();
 
         room_pool_list_all();
