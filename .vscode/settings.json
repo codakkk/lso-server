@@ -1,0 +1,23 @@
+{
+  "files.associations": {
+    "room.h": "c",
+    "client.h": "c",
+    "cmath": "c",
+    "cstdarg": "c",
+    "cstdio": "c",
+    "cstdlib": "c",
+    "type_traits": "c",
+    "limits": "c",
+    "*.tcc": "c",
+    "cstdbool": "c",
+    "cstdint": "c",
+    "typeinfo": "c",
+    "stdlib.h": "c",
+    "pthread.h": "c",
+    "string.h": "c",
+    "room_pool.h": "c",
+    "client_pool.h": "c",
+    "unistd.h": "c",
+    "stdbool.h": "c"
+  }
+}
