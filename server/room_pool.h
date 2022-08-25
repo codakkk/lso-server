@@ -11,13 +11,14 @@
 
 struct room_pool_t {
   struct room_t* rooms[MAX_ROOMS];
-  pthread_mutex_t mutex;
 
   int size;
 };
 
+void room_pool_initialize();
 bool room_pool_add(struct room_t* room);
 void room_pool_send_all(struct client_t* client);
+void room_pool_list_all();
 
 struct room_t* room_pool_get_by_index(int index);
 #endif

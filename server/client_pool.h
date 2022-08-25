@@ -17,4 +17,7 @@ struct client_pool_t {
 bool client_pool_add(struct client_t* cl);
 bool client_pool_remove(struct client_t* cl);
 bool client_pool_is_full();
+
+void client_pool_lock();
+void client_pool_unlock();
 #endif

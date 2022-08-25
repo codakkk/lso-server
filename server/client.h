@@ -13,6 +13,7 @@ struct client_t {
     struct room_t* room;
 
     pthread_t thread;
+    pthread_mutex_t mutex;
 
     int sockfd;
     int uid;
@@ -22,11 +23,12 @@ struct client_t {
 
 struct client_t* create_client(struct sockaddr_in address, int connfd);
 
-bool client_send_message(struct client_t* client, char* message);
-void client_enter_room(struct client_t* client, struct room_t* room);
+void client_lock(struct client_t* client);
+void client_unlock(struct client_t* client);
 
-void client_leave_chat(struct client_t* client);
-void client_leave_room(struct client_t* client);
+bool client_send_message(struct client_t* client, char* message);
+void client_set_room(struct client_t* client, struct room_t* room);
+void client_set_chat_with(struct client_t* client, struct client_t* with);
 
 bool client_is_free(struct client_t* client);
 

@@ -1,13 +1,14 @@
 #include "client.h"
 #include "room.h"
 #include "room_pool.h"
+#include "client_pool.h"
 
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 1024
 
 int counter_client = 0;
 
@@ -22,11 +23,19 @@ struct client_t* create_client(struct sockaddr_in address, int connfd)
   cli->last_chat_with = NULL;
   cli->room = NULL;
 
-  if(pthread_create(&cli->thread, NULL, &_client_handler, (void*)cli))
-  {
-    printf("Client handler started");
-  }
+  pthread_mutex_init(&cli->mutex, NULL);
+  pthread_create(&cli->thread, NULL, &_client_handler, (void*)cli);
   return cli;
+}
+
+void client_lock(struct client_t* client) 
+{
+  pthread_mutex_lock(&client->mutex); 
+}
+
+void client_unlock(struct client_t* client)
+{
+  pthread_mutex_unlock(&client->mutex);
 }
 
 bool client_send_message(struct client_t* client, char* message) 
@@ -41,29 +50,21 @@ bool client_send_message(struct client_t* client, char* message)
   return true;
 }
 
-void client_enter_room(struct client_t* client, struct room_t* room) 
+void client_set_room(struct client_t* client, struct room_t* room) 
 {
-  if(room == NULL) 
-  {
-    perror("ERROR(client_enter_room): called func with NULL room. Use client_leave_room instead.");
-    return;
-  }
+  if(room == client->room) return;
 
   client->room = room;
   client->chat_with = NULL;
 }
 
-void client_leave_chat(struct client_t* client) 
+void client_set_chat_with(struct client_t* client, struct client_t* with) 
 {
-  client->last_chat_with = client->chat_with;
-  client->chat_with = NULL;
-}
-void client_leave_room(struct client_t* client) 
-{
-  client->chat_with = NULL;
-  client->room = NULL;
-}
+  if(with == client->chat_with) return;
 
+  client->last_chat_with = client->chat_with;
+  client->chat_with = with;
+}
 
 bool client_is_free(struct client_t* client)
 {
@@ -72,7 +73,6 @@ bool client_is_free(struct client_t* client)
 
 void* _client_handler(void* args) 
 {
-  printf("Handler");
   struct client_t* client = (struct client_t*)args;
 
   if(client == NULL) 
@@ -115,21 +115,36 @@ void* _client_handler(void* args)
             int selectedRoomIndex = atoi(msgBuffer);
             struct room_t* room = room_pool_get_by_index(selectedRoomIndex);
 
-            room_add_client(room, client);
-            client_send_message(client, "Waiting for pairing\n");
-            bzero(msgBuffer, BUFFER_SIZE);
+            if(room != NULL) 
+            {
+              room_add_client(room, client);
+
+              client_send_message(client, "Waiting for pairing...\n");
+            }
           }
         }
 
         if(client->room != NULL && strcmp(msgBuffer, "/exitroom\n") == 0) 
         {
           room_remove_client(client->room, client);
-          return NULL;
         }
 
         if(client->chat_with != NULL) 
         {
-          client_send_message(client->chat_with, msgBuffer);
+          if(strcmp(msgBuffer, "/exitchat\n") == 0) 
+          {
+            sprintf(msgBuffer, "%s left the chat. Searching for new match...\n", client->name);
+            client_send_message(client->chat_with, msgBuffer);
+
+            client_set_chat_with(client->chat_with, NULL);
+
+            client_send_message(client, "You've left the chat. Searching for new match...\n");
+            client_set_chat_with(client, NULL);
+          }
+          else
+          {
+            client_send_message(client->chat_with, msgBuffer);
+          }
         }
       }
     }
@@ -148,6 +163,8 @@ void* _client_handler(void* args)
   }
 
   printf("%s left the server\n", client->name);
+
+  client_pool_remove(client);
 
   close(client->sockfd);
   pthread_detach(pthread_self());

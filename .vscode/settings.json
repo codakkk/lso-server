@@ -16,6 +16,8 @@
     "pthread.h": "c",
     "string.h": "c",
     "room_pool.h": "c",
-    "client_pool.h": "c"
+    "client_pool.h": "c",
+    "unistd.h": "c",
+    "stdbool.h": "c"
   }
 }

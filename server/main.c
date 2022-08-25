@@ -18,11 +18,6 @@
 
 #define BUFFER_SZ 2048
 
-
-static _Atomic unsigned int cli_count = 0;
-static int uid = 10;
-
-
 void print_client_addr(struct sockaddr_in addr)
 {
     printf("%d.%d.%d.%d",
@@ -37,11 +32,13 @@ void print_client_addr(struct sockaddr_in addr)
 
 void create_rooms()
 {
-    printf("Creating rooms...\n");
+    printf("Generating rooms...\n");
+    room_pool_initialize();
     room_pool_add(room_create("Aldo, Giovanni e Giacomo"));
     room_pool_add(room_create("Sport"));
     room_pool_add(room_create("Barzellette!"));
-    printf("Rooms created!\n");
+    room_pool_list_all();
+    printf("Rooms generated.\n");
 }
 
 int main(int argc, char **argv)
@@ -54,7 +51,9 @@ int main(int argc, char **argv)
 
     char *ip = "127.0.0.1";
     int port = atoi(argv[1]);
-    printf("Porta: %d", port);
+
+    printf("Listening on %s:%d\n", ip, port);
+
     int option = 1;
     int listenfd = 0;
     struct sockaddr_in serv_addr;
@@ -88,7 +87,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    printf("=== WELCOME TO THE CHATROOM ===\n");
+    printf("Chatroom created by Ciro Carandente, Luca Corteccioni, Giovanni Bruno\n");
     create_rooms();
     
     pthread_t tid;
@@ -108,9 +107,13 @@ int main(int argc, char **argv)
             close(connfd);
             continue;
         }
-
-        client_pool_add(create_client(cli_addr, connfd));
         
+        client_pool_lock();
+        client_pool_add(create_client(cli_addr, connfd));
+        client_pool_unlock();
+
+        room_pool_list_all();
+
         /* Reduce CPU usage */
         sleep(1);
     }
