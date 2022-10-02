@@ -2,13 +2,18 @@
 #include "room.h"
 #include "room_pool.h"
 #include "client_pool.h"
+#include "utils.h"
+#include "messages.h"
+#include "lso_reader.h"
+#include "lso_writer.h"
+#include "tags.h"
 
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 128
 
 int counter_client = 0;
 
@@ -41,7 +46,7 @@ void client_unlock(struct client_t* client)
 bool client_send_message(struct client_t* client, char* message) 
 {
   if(client == NULL) return false;
-
+  
   if(write(client->sockfd, message, strlen(message)) < 0) 
   {
     perror("ERROR(client_send_message): write to descriptor failed.");
@@ -71,6 +76,26 @@ bool client_is_free(struct client_t* client)
   return client->chat_with == NULL;
 }
 
+void _on_message_received(struct client_t* client, message_t* message)
+{
+  lso_reader_t* reader = message_to_reader(message);
+
+  if(message->tag == SendFirstConfigurationTag) 
+  {
+    lso_reader_t* reader = message_to_reader(message);
+
+    lso_reader_read_string(reader, &client->name);
+    printf("%s has joined the server\n", client->name);
+
+    message_t* message = message_create_empty(FirstConfigurationAcceptedTag);
+    client_send(client, message);
+
+    free(reader);
+  }
+
+  free(reader);
+}
+
 void* _client_handler(void* args) 
 {
   struct client_t* client = (struct client_t*)args;
@@ -81,29 +106,38 @@ void* _client_handler(void* args)
     return NULL;
   }
 
+  // Send a message to the client
+  // saying that he can now send messages
+
+  message_t* acceptedMessage = message_create_empty(JoinRequestAcceptedTag);
+  client_send(client, acceptedMessage);
+  free(acceptedMessage);
+
   char msgBuffer[BUFFER_SIZE]; 
-  char name[32];
   bool leaveFlag = false;
 
-  // Name
-  if (recv(client->sockfd, name, 32, 0) <= 0 || strlen(name) < 2 || strlen(name) >= 32 - 1)
-  {
-      printf("Didn't enter the name.\n");
-      leaveFlag = true;
-  }
-  else
-  {
-      strcpy(client->name, name);
-      printf("%s has joined the server\n", client->name);
-  }
-
-  room_pool_send_all(client);
+  // room_pool_send_all(client);
 
   while(!leaveFlag)
   {
-    int numBytesRead = read(client->sockfd, msgBuffer, BUFFER_SIZE-1);
-    msgBuffer[numBytesRead] = '\0';
+    int32_t size = read(client->sockfd, msgBuffer, BUFFER_SIZE-1);
 
+    if(size == 0) 
+    {
+      continue;
+    }
+
+    byte_buffer_t* byteBuffer = byte_buffer_create_from_bytes(size, msgBuffer);
+    message_t* message = message_create_from_byte_buffer(byteBuffer);
+
+    printf("Message(Tag: %d) - ByteBuffer(Count: %d, Capacity: %d)\n", message->tag, byteBuffer->count, byteBuffer->capacity);
+
+    _on_message_received(client, message);
+
+    free(message);
+    free(byteBuffer);
+
+    /*
     if(numBytesRead > 0) 
     {
       if(strlen(msgBuffer) > 0)
@@ -156,7 +190,7 @@ void* _client_handler(void* args)
     {
       leaveFlag = true;
     }
-
+    */
     bzero(msgBuffer, BUFFER_SIZE);
   }
 
@@ -174,4 +208,17 @@ void* _client_handler(void* args)
 
   close(client->sockfd);
   free(client);
+}
+
+bool client_send(struct client_t* client, message_t* message)
+{
+  byte_buffer_t* buffer = message_to_buffer(message);
+
+  if(send(client->sockfd, buffer->buffer, buffer->count, 0) < 0) 
+  {
+    printf("DEBUG: Error sending message with tag: %d\n", message->tag);
+    return false;
+  }
+  free(buffer);
+  return true;
 }

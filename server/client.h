@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "messages.h"
+
 struct client_t {
     struct sockaddr_in address;
 
@@ -17,7 +19,7 @@ struct client_t {
 
     int sockfd;
     int uid;
-    char name[32];
+    char* name;
 };
 
 
@@ -33,4 +35,7 @@ void client_set_chat_with(struct client_t* client, struct client_t* with);
 bool client_is_free(struct client_t* client);
 
 void* _client_handler(void* args);
+
+bool client_send(struct client_t* client, message_t* message);
+
 #endif

@@ -15,6 +15,7 @@
 #include "./room.h"
 #include "client_pool.h"
 #include "room_pool.h"
+#include "utils.h"
 
 #define BUFFER_SZ 2048
 
@@ -49,7 +50,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    char *ip = "127.0.0.1";
+    char *ip = "0.0.0.0";
     int port = atoi(argv[1]);
 
     printf("Listening on %s:%d\n", ip, port);
@@ -109,10 +110,23 @@ int main(int argc, char **argv)
         }
         
         client_pool_lock();
-        client_pool_add(client_create(cli_addr, connfd));
+        struct client_t* client = client_create(cli_addr, connfd);
+        client_pool_add(client);
         client_pool_unlock();
 
-        room_pool_list_all();
+        /*int16_t sz = 1; // bytes
+        unsigned char* buffer = malloc(sz), *ptr;
+        serialize_char(buffer, 1);
+
+        int result = send(connfd, buffer, sz, 0);
+
+        if(result < 0) 
+        {
+            printf("Error sending client accepted message");
+            continue;
+        }*/
+        
+        // room_pool_list_all();
 
         /* Reduce CPU usage */
         sleep(1);

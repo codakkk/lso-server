@@ -18,6 +18,15 @@
     "room_pool.h": "c",
     "client_pool.h": "c",
     "unistd.h": "c",
-    "stdbool.h": "c"
+    "stdbool.h": "c",
+    "utils.h": "c",
+    "stdint.h": "c",
+    "buffer.h": "c",
+    "system_error": "c",
+    "array": "c",
+    "string_view": "c",
+    "initializer_list": "c",
+    "utility": "c",
+    "lso_writer.h": "c"
   }
 }

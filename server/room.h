@@ -12,9 +12,9 @@
 
 struct room_t {
     pthread_mutex_t mutex;
-    int id;
+    int32_t id;
     struct client_t* clients[MAX_CLIENTS_PER_ROOM];
-    int clientsCount;
+    int32_t clientsCount;
 
     pthread_t tid;
 

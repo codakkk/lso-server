@@ -1,0 +1,67 @@
+#include "lso_reader.h"
+#include "utils.h"
+
+#include <stdio.h>
+#include <string.h>
+
+lso_reader_t* lso_reader_create(byte_buffer_t* buffer)
+{
+  lso_reader_t* reader = malloc(sizeof(lso_reader_t));
+  reader->buffer = buffer;
+  reader->position = 0;
+
+  return reader;
+}
+
+int8_t lso_reader_read_int8(lso_reader_t* reader) 
+{
+  if(reader->position >= reader->buffer->count) 
+  {
+    printf("Failed reading int8.\n");
+    return 0;
+  }
+
+  return read_int8(reader->buffer, reader->buffer->offset + reader->position++);
+}
+
+int16_t lso_reader_read_int16(lso_reader_t* reader) 
+{
+  if(reader->position+2 > reader->buffer->count) 
+  {
+    printf("Failed reading int16.\n");
+    return 0;
+  }
+
+  return read_int16(reader->buffer, reader->buffer->offset + reader->position++);
+}
+
+int32_t lso_reader_read_int32(lso_reader_t* reader) 
+{
+  if(reader->position+4 > reader->buffer->count) 
+  {
+    printf("Failed reading int32.\n");
+    return 0;
+  }
+
+  return read_int32(reader->buffer, reader->buffer->offset + reader->position++);
+}
+
+int32_t lso_reader_read_string(lso_reader_t* reader, char** string)
+{
+  if(reader->position + 4 > reader->buffer->count)
+  {
+    return -1;
+  }
+
+  int32_t length = read_int32(reader->buffer, reader->buffer->offset + reader->position);
+
+  *string = malloc(sizeof(char) * length);
+  for(int i = 0; i < length; ++i) 
+  {
+    (*string)[i] = read_int8(reader->buffer, reader->buffer->offset + reader->position + 4 + i);
+  }
+
+  reader->position += 4 + length;
+
+  return length;
+}

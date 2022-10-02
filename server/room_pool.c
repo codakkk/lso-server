@@ -1,5 +1,6 @@
 #include "room_pool.h"
 #include "room.h"
+#include "utils.h"
 
 #include <unistd.h>
 #include <stdbool.h>
@@ -50,15 +51,29 @@ void room_pool_send_all(struct client_t* client)
 {
   char buff_out[4096];
 
-  client_send_message(client, "Select your room:\n");
+  //client_send_message(client, "Select your room:\n");
 
   for (int i = 0; i < MAX_ROOMS; i++)
   {
     struct room_t* room = room_pool.rooms[i];
     if(room == NULL) continue;
     
-    sprintf(buff_out, "%d) %s %d/%d.\n", i, room->channelName, room->clientsCount, MAX_CLIENTS_PER_ROOM);
-    client_send_message(client, buff_out);
+    //           messageLength   messageType     Payload    
+    /*short size = sizeof(short) + sizeof(char) + sizeof(int)*3;
+
+    unsigned char* buffer = malloc(size), *ptr;
+    ptr = serialize_short(buffer, size);
+    ptr = serialize_char(ptr, 1);
+    ptr = serialize_int(ptr, room->id);
+    ptr = serialize_int(ptr, room->clientsCount);
+    ptr = serialize_int(ptr, MAX_CLIENTS_PER_ROOM);
+    
+
+    int result = send(client->sockfd, buffer, size, 0);
+    // sprintf(buff_out, "0;id=%d;name=%s;count=%d;max=%d", room->id, room->channelName, room->clientsCount, MAX_CLIENTS_PER_ROOM);
+    printf("Message sent - size: %d - result: %d\n", size, result);
+    
+    free(buffer);*/
   }
 }
 
