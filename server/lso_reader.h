@@ -1,5 +1,5 @@
-#ifndef __H_LSO_WRITER__
-#define __H_LSO_WRITER__
+#ifndef __H_LSO_READER__
+#define __H_LSO_READER__
 
 #include <stdlib.h>
 #include "buffer.h"

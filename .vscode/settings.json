@@ -27,6 +27,9 @@
     "string_view": "c",
     "initializer_list": "c",
     "utility": "c",
-    "lso_writer.h": "c"
+    "lso_writer.h": "c",
+    "stdio.h": "c",
+    "in.h": "c",
+    "inet.h": "c"
   }
 }

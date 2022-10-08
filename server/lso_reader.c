@@ -32,7 +32,9 @@ int16_t lso_reader_read_int16(lso_reader_t* reader)
     return 0;
   }
 
-  return read_int16(reader->buffer, reader->buffer->offset + reader->position++);
+  int16_t v = read_int16(reader->buffer, reader->buffer->offset + reader->position);
+  reader->position += 2;
+  return v;
 }
 
 int32_t lso_reader_read_int32(lso_reader_t* reader) 
@@ -43,7 +45,9 @@ int32_t lso_reader_read_int32(lso_reader_t* reader)
     return 0;
   }
 
-  return read_int32(reader->buffer, reader->buffer->offset + reader->position++);
+  int32_t v = read_int32(reader->buffer, reader->buffer->offset + reader->position);
+  reader->position += 4;
+  return v;
 }
 
 int32_t lso_reader_read_string(lso_reader_t* reader, char** string)

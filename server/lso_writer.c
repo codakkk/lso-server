@@ -3,13 +3,11 @@
 
 #include <string.h>
 
-lso_writer_t* lso_writer_create(int minLength)
+
+void lso_writer_initialize(lso_writer_t* writer, int minLength)
 {
-  lso_writer_t* writer = malloc(sizeof(lso_writer_t));
   writer->position = 0;
   writer->buffer = byte_buffer_create(minLength);
-
-  return writer;
 }
 
 void lso_writer_write_int8(lso_writer_t* writer, int8_t v)
@@ -54,4 +52,9 @@ void lso_writer_write_string(lso_writer_t* writer, char* str)
   writer->position += 4 + strlen(str);
 
   writer->buffer->count = MAX(writer->buffer->count, writer->position);
+}
+
+byte_buffer_t* lso_writer_to_byte_buffer(lso_writer_t* writer)
+{
+  return byte_buffer_clone(writer->buffer);
 }

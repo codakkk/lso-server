@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 byte_buffer_t* byte_buffer_create(int32_t minCapacity) 
 {
@@ -47,4 +48,13 @@ void byte_buffer_ensure_size(byte_buffer_t* buffer, int space)
   memcpy(newBuffer, buffer->buffer, buffer->capacity);
 
   buffer->capacity = space;
+}
+
+void byte_buffer_print_debug(byte_buffer_t* buffer)
+{
+  for(int i = 0; i < buffer->count; ++i)
+  {
+    printf("%d,", buffer->buffer[i]);
+  }
+  printf("\n");
 }

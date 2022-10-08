@@ -22,4 +22,6 @@ byte_buffer_t* byte_buffer_clone(byte_buffer_t* bf);
 
 void byte_buffer_ensure_size(byte_buffer_t* buffer, int space);
 
+void byte_buffer_print_debug(byte_buffer_t* buffer);
+
 #endif

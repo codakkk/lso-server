@@ -46,6 +46,38 @@ int main(int argc, char **argv)
 {
     if (argc != 2)
     {
+        int32_t v1 = 100;
+        int16_t v2 = 300;
+
+        printf("Using ByteBuffer: \n");
+        byte_buffer_t* bf = byte_buffer_create(6);
+        write_int32(bf, 0, v1);
+        write_int16(bf, 4, v2);
+        printf("%d == %d - %d == %d\n", v1, read_int32(bf, 0), v2, read_int16(bf, 4));
+        printf("==================\n\n");
+
+        printf("Using Writer with manual reading: \n");
+        
+        lso_writer_t writer;
+        lso_writer_initialize(&writer, 6);
+        
+        lso_writer_write_int32(&writer, v1);
+        lso_writer_write_int16(&writer, v2);
+        printf("%d == %d - %d == %d\n", v1, read_int32(writer.buffer, 0), v2, read_int16(writer.buffer, 4));
+
+        printf("Writer bytes wrote: %d. Capacity: %d\n", writer.buffer->count, writer.buffer->capacity);
+
+        printf("==================\n\n");
+
+        printf("Using Writer using reader: \n");
+
+        lso_reader_t* reader = lso_reader_create(writer.buffer);
+        
+        int32_t reader32 = lso_reader_read_int32(reader);
+        int16_t reader16 = lso_reader_read_int16(reader);
+        printf("%d == %d - %d == %d\n", v1, reader32, v2, reader16);
+        printf("==================\n\n");
+
         printf("Usage: %s <port>\n", argv[0]);
         return EXIT_FAILURE;
     }

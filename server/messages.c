@@ -5,6 +5,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+message_t* message_create_from_writer(int16_t tag, lso_writer_t* writer)
+{
+  message_t* message = malloc(sizeof(message_t));
+
+  message->tag = tag;
+  message->buffer = lso_writer_to_byte_buffer(writer);
+  return message;
+}
+
 message_t* message_create_from_byte_buffer(byte_buffer_t* buffer)
 {
   message_t* message = malloc(sizeof(message_t));
@@ -44,7 +53,13 @@ byte_buffer_t* message_to_buffer(message_t* message)
 
   write_int16(buffer, 0, message->tag);
 
-  memcpy(buffer->buffer + buffer->offset + 2, message->buffer, message->buffer->count);
+  for(int i = 0; i < message->buffer->count; ++i) {
+    buffer->buffer[2+i] = message->buffer->buffer[i];
+  }
+
+  //memcpy(buffer->buffer, message->buffer, message->buffer->count);
+
+  byte_buffer_print_debug(buffer);
 
   return buffer;
 }

@@ -4,6 +4,7 @@
 
 #include "buffer.h"
 #include "lso_reader.h"
+#include "lso_writer.h"
 #include "utils.h"
 
 
@@ -13,6 +14,7 @@ typedef struct {
   byte_buffer_t* buffer;
 } message_t;
 
+message_t* message_create_from_writer(int16_t tag, lso_writer_t* writer);
 message_t* message_create_from_byte_buffer(byte_buffer_t* buffer);
 message_t* message_create_empty(int16_t tag);
 
