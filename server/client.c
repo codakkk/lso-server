@@ -101,17 +101,32 @@ void _on_message_received(struct client_t* client, message_t* message)
 
     if(room != NULL) 
     {
-      room_add_client(room, client);
+      if(room->clientsCount < MAX_CLIENTS_PER_ROOM) 
+      {
+        room_add_client(room, client);
 
-      lso_writer_t writer;
-      lso_writer_initialize(&writer, 4);
-      lso_writer_write_int32(&writer, roomId);
+        lso_writer_t writer;
+        lso_writer_initialize(&writer, 4);
+        lso_writer_write_int32(&writer, roomId);
 
-      message_t* joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
-      client_send(client, joinAcceptedMessage);
+        message_t* joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
+        client_send(client, joinAcceptedMessage);
 
-      message_destroy(joinAcceptedMessage);
-      free(joinAcceptedMessage);
+        message_destroy(joinAcceptedMessage);
+        free(joinAcceptedMessage);
+      }
+      else
+      {
+        lso_writer_t writer;
+        lso_writer_initialize(&writer, 4);
+        lso_writer_write_int32(&writer, roomId);
+
+        message_t* joinRoomRefusedMessage = message_create_from_writer(kJoinRoomRefusedTag, &writer);
+        client_send(client, joinRoomRefusedMessage);
+
+        message_destroy(joinRoomRefusedMessage);
+        free(joinRoomRefusedMessage);
+      }
     }
   }
 
