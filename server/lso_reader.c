@@ -13,6 +13,17 @@ lso_reader_t* lso_reader_create(byte_buffer_t* buffer)
   return reader;
 }
 
+bool lso_reader_read_bool(lso_reader_t* reader)
+{
+  if(reader->position >= reader->buffer->count) 
+  {
+    printf("Failed reading bool.\n");
+    return false;
+  }
+
+  return read_int8(reader->buffer, reader->buffer->offset + reader->position++);
+}
+
 int8_t lso_reader_read_int8(lso_reader_t* reader) 
 {
   if(reader->position >= reader->buffer->count) 

@@ -90,26 +90,29 @@ void _on_message_received(struct client_t* client, message_t* message)
   }
   else if(message->tag == RequestRoomsTag)
   {
-    lso_writer_t writer;
-    lso_writer_initialize(&writer, 1);
+    message_t* message = create_rooms_message();
 
-    lso_writer_write_int32(&writer, 1); // id
-    lso_writer_write_int32(&writer, 2); // clientsCount
-    lso_writer_write_int32(&writer, MAX_CLIENTS_PER_ROOM); // max clients in room
-    lso_writer_write_string(&writer, "name"); // room name
-    
-    message_t* message = message_create_from_writer(RoomsTag, &writer);
     client_send(client, message);
+  }
+  else if(message->tag == kJoinRoomTag)
+  {
+    int32_t roomId = lso_reader_read_int32(reader);
+    struct room_t* room = room_pool_get_by_id(roomId);
 
-    lso_reader_t* reader = message_to_reader(message);
-    
-    int32_t id = lso_reader_read_int32(reader);
-    int32_t count = lso_reader_read_int32(reader);
-    int32_t max = lso_reader_read_int32(reader);
-    
-    printf("Id: %d - Count: %d - Max: %d\n", id, count, max);
+    if(room != NULL) 
+    {
+      room_add_client(room, client);
 
-    free(message);
+      lso_writer_t writer;
+      lso_writer_initialize(&writer, 4);
+      lso_writer_write_int32(&writer, roomId);
+
+      message_t* joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
+      client_send(client, joinAcceptedMessage);
+
+      message_destroy(joinAcceptedMessage);
+      free(joinAcceptedMessage);
+    }
   }
 
   free(reader);
@@ -135,8 +138,6 @@ void* _client_handler(void* args)
   char msgBuffer[BUFFER_SIZE]; 
   bool leaveFlag = false;
 
-  // room_pool_send_all(client);
-
   while(!leaveFlag)
   {
     int32_t size = read(client->sockfd, msgBuffer, BUFFER_SIZE-1);
@@ -154,6 +155,7 @@ void* _client_handler(void* args)
 
     _on_message_received(client, message);
 
+    //message_destroy(message);
     free(message);
     free(byteBuffer);
 
@@ -232,9 +234,12 @@ void* _client_handler(void* args)
 
 bool client_send(struct client_t* client, message_t* message)
 {
-  byte_buffer_print_debug(message->buffer);
+  // byte_buffer_print_debug(message->buffer);
+  
   byte_buffer_t* buffer = message_to_buffer(message);
-  byte_buffer_print_debug(buffer);
+  
+  // byte_buffer_print_debug(buffer);
+
   printf("Sending message with tag %d to %s\n", message->tag, client->name);
   if(send(client->sockfd, buffer->buffer, buffer->count, 0) < 0) 
   {

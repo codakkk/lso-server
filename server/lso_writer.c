@@ -10,6 +10,24 @@ void lso_writer_initialize(lso_writer_t* writer, int minLength)
   writer->buffer = byte_buffer_create(minLength);
 }
 
+/* 
+  This destroys only internal structure.
+   Free should be called on writer if it's dynamically allocated
+*/
+void lso_writer_destroy(lso_writer_t* writer)
+{
+  byte_buffer_destroy(writer->buffer);
+}
+
+void lso_writer_write_bool(lso_writer_t* writer, bool v)
+{
+  byte_buffer_ensure_size(writer->buffer, writer->position + 1);
+  
+  write_int8(writer->buffer, writer->position++, v == true ? 1 : 0);
+
+  writer->buffer->count = MAX(writer->buffer->count, writer->position);
+}
+
 void lso_writer_write_int8(lso_writer_t* writer, int8_t v)
 {
   byte_buffer_ensure_size(writer->buffer, writer->position + 1);

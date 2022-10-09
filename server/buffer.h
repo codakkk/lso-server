@@ -15,6 +15,8 @@ typedef struct {
 
 } byte_buffer_t;
 
+void byte_buffer_destroy(byte_buffer_t* bf);
+
 byte_buffer_t* byte_buffer_create(int32_t minCapacity);
 byte_buffer_t* byte_buffer_create_from_bytes(int32_t size, int8_t* bytes);
 

@@ -38,7 +38,7 @@ void create_rooms()
     room_pool_add(room_create("Aldo, Giovanni e Giacomo"));
     room_pool_add(room_create("Sport"));
     room_pool_add(room_create("Barzellette!"));
-    room_pool_list_all();
+    // room_pool_list_all();
     printf("Rooms generated.\n");
 }
 

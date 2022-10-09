@@ -1,13 +1,22 @@
+#ifndef __TAGS_H_
+#define __TAGS_H_
+
 #include <stdlib.h>
 
 // Those values must match with Tags.java in Client
 
 
-const int16_t JoinRequestTag = 0;
-const int16_t JoinRequestAcceptedTag = 1;
+extern const int16_t JoinRequestTag;
+extern const int16_t JoinRequestAcceptedTag;
 
-const int16_t RequestRoomsTag = 2;
-const int16_t RoomsTag = 3;
+extern const int16_t RequestRoomsTag;
+extern const int16_t RoomsTag;
 
-const int16_t SendFirstConfigurationTag = 4;
-const int16_t FirstConfigurationAcceptedTag = 5;
+extern const int16_t SendFirstConfigurationTag;
+extern const int16_t FirstConfigurationAcceptedTag;
+
+extern const int16_t kRoomTag;
+extern const int16_t kJoinRoomTag;
+extern const int16_t kJoinRoomAcceptedTag;
+extern const int16_t kJoinRoomRefusedTag;
+#endif

@@ -4,6 +4,19 @@
 #include <string.h>
 #include <stdio.h>
 
+/* 
+  This destroys only internal structure.
+  Free should be called on bf if it's dynamically allocated
+*/
+void byte_buffer_destroy(byte_buffer_t* bf)
+{
+  if(bf->buffer != NULL)
+  {
+    free(bf->buffer);
+    bf->buffer = NULL;
+  }
+}
+
 byte_buffer_t* byte_buffer_create(int32_t minCapacity) 
 {
   byte_buffer_t* buffer = malloc(sizeof(byte_buffer_t));

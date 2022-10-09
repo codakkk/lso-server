@@ -1,6 +1,7 @@
 #include "room_pool.h"
 #include "room.h"
 #include "utils.h"
+#include "tags.h"
 
 #include <unistd.h>
 #include <stdbool.h>
@@ -47,36 +48,6 @@ bool room_pool_add(struct room_t* room)
   return true;
 }
 
-void room_pool_send_all(struct client_t* client)
-{
-  char buff_out[4096];
-
-  //client_send_message(client, "Select your room:\n");
-
-  for (int i = 0; i < MAX_ROOMS; i++)
-  {
-    struct room_t* room = room_pool.rooms[i];
-    if(room == NULL) continue;
-    
-    //           messageLength   messageType     Payload    
-    /*short size = sizeof(short) + sizeof(char) + sizeof(int)*3;
-
-    unsigned char* buffer = malloc(size), *ptr;
-    ptr = serialize_short(buffer, size);
-    ptr = serialize_char(ptr, 1);
-    ptr = serialize_int(ptr, room->id);
-    ptr = serialize_int(ptr, room->clientsCount);
-    ptr = serialize_int(ptr, MAX_CLIENTS_PER_ROOM);
-    
-
-    int result = send(client->sockfd, buffer, size, 0);
-    // sprintf(buff_out, "0;id=%d;name=%s;count=%d;max=%d", room->id, room->channelName, room->clientsCount, MAX_CLIENTS_PER_ROOM);
-    printf("Message sent - size: %d - result: %d\n", size, result);
-    
-    free(buffer);*/
-  }
-}
-
 struct room_t* room_pool_get_by_index(int index)
 {
   if(index < 0 || index >= MAX_ROOMS) return NULL;
@@ -84,14 +55,33 @@ struct room_t* room_pool_get_by_index(int index)
   return room_pool.rooms[index];
 }
 
-void room_pool_list_all()
+struct room_t* room_pool_get_by_id(int32_t id)
 {
-  char buff_out[4096];
+  for(int i = 0; i < MAX_ROOMS; ++i)
+  {
+    struct room_t* room = room_pool.rooms[i];
+    if(room == NULL || room->id != id) continue;
+    return room;
+  }
+  return NULL;
+}
 
-  for (int i = 0; i < MAX_ROOMS; i++)
+message_t* create_rooms_message()
+{
+  lso_writer_t writer;
+  lso_writer_initialize(&writer, sizeof(4 + 4 + 32));
+
+  for(int i = 0; i < MAX_ROOMS; ++i)
   {
     struct room_t* room = room_pool.rooms[i];
     if(room == NULL) continue;
-    printf("%d) %s %d/%d\n", i, room->channelName, room->clientsCount, MAX_CLIENTS_PER_ROOM);
+    lso_writer_write_int32(&writer, room->id);
+    lso_writer_write_int32(&writer, room->clientsCount);
+    lso_writer_write_int32(&writer, MAX_CLIENTS_PER_ROOM);
+    lso_writer_write_string(&writer, room->channelName);
   }
+
+  message_t* message = message_create_from_writer(kRoomTag, &writer);
+  // lso_writer_destroy(&writer);
+  return message;
 }

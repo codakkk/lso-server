@@ -17,8 +17,11 @@ struct room_pool_t {
 
 void room_pool_initialize();
 bool room_pool_add(struct room_t* room);
-void room_pool_send_all(struct client_t* client);
 void room_pool_list_all();
+
+struct room_t* room_pool_get_by_id(int32_t id);
+
+message_t* create_rooms_message();
 
 struct room_t* room_pool_get_by_index(int index);
 #endif

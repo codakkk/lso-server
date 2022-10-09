@@ -172,7 +172,7 @@ void _on_match(struct room_t* room, struct client_t* c1, struct client_t* c2)
 
 void _on_leave_room(struct room_t* room, struct client_t* client)
 {
-  room_pool_send_all(client);
+  // room_pool_send_all(client);
 
   if(client->chat_with != NULL)
   {
