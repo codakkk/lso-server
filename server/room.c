@@ -1,6 +1,7 @@
 #include "room.h"
 #include "client.h"
 #include "room_pool.h"
+#include "tags.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -159,14 +160,30 @@ void _room_try_matches(struct room_t* room)
 
 void _on_match(struct room_t* room, struct client_t* c1, struct client_t* c2)
 {
-  char buff_out[BUFFER_SZ];
+  // Send message to c1
+  lso_writer_t writer;
+  lso_writer_initialize(&writer, 8);
+  lso_writer_write_int32(&writer, room->id);
+  lso_writer_write_int32(&writer, c2->uid);
+  lso_writer_write_string(&writer, c2->name);
 
-  sprintf(buff_out, "Matched with %s\n", c2->name);
-  client_send_message(c1, buff_out);
+  message_t* c1MatchedMessage = message_create_from_writer(kOnMatchTag, &writer);
+  client_send(c1, c1MatchedMessage);
 
-  sprintf(buff_out, "Matched with %s\n", c1->name);
-  client_send_message(c2, buff_out);
+  message_destroy(c1MatchedMessage);
+
+  // Send message to c2
+  lso_writer_t c2Writer;
+  lso_writer_initialize(&c2Writer, 8);
+  lso_writer_write_int32(&c2Writer, room->id);
+  lso_writer_write_int32(&c2Writer, c1->uid);
+  lso_writer_write_string(&c2Writer, c1->name);
+
+  message_t* c2MatchedMessage = message_create_from_writer(kOnMatchTag, &c2Writer);
+  client_send(c2, c2MatchedMessage);
   
+  message_destroy(c2MatchedMessage);
+
   printf("[%s] Matched %s with %s\n", room->channelName, c1->name, c2->name);
 }
 

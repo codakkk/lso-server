@@ -86,6 +86,8 @@ void _on_message_received(struct client_t* client, message_t* message)
 
     message_t* message = message_create_empty(FirstConfigurationAcceptedTag);
     client_send(client, message);
+    
+    message_destroy(message);
     free(message);
   }
   else if(message->tag == RequestRoomsTag)
@@ -127,6 +129,41 @@ void _on_message_received(struct client_t* client, message_t* message)
         message_destroy(joinRoomRefusedMessage);
         free(joinRoomRefusedMessage);
       }
+    }
+  }
+  else if(message->tag == kSendMessageTag)
+  {
+    struct client_t* other = client->chat_with;
+    if(other != NULL) 
+    {
+      char* messageText;
+      int messageLength = lso_reader_read_string(reader, &messageText);
+      printf("%s sending message %s to %s.", client->name, messageText, other->name);
+
+      lso_writer_t writer;
+      lso_writer_initialize(&writer, messageLength);
+      lso_writer_write_string(&writer, messageText);
+
+      message_t* message = message_create_from_writer(kConfirmSentMessageTag, &writer);
+      client_send(client, message);
+
+      free(message);
+      
+      message = message_create_from_writer(kSendMessageTag, &writer);
+      client_send(other, message);
+
+      message_destroy(message);
+      free(message);
+    } 
+    else 
+    {
+      message_t* message = message_create_empty(kRejectSentMessageTag);
+      client_send(client, message);
+      
+      message_destroy(message);
+      free(message);
+
+      printf("Rejecting message from client %s", client->name);
     }
   }
 
@@ -261,6 +298,7 @@ bool client_send(struct client_t* client, message_t* message)
     printf("DEBUG: Error sending message with tag: %d\n", message->tag);
     return false;
   }
+  byte_buffer_destroy(buffer);
   free(buffer);
   return true;
 }

@@ -16,7 +16,11 @@ void lso_writer_initialize(lso_writer_t* writer, int minLength)
 */
 void lso_writer_destroy(lso_writer_t* writer)
 {
-  byte_buffer_destroy(writer->buffer);
+  if(writer->buffer != NULL)
+  {
+    byte_buffer_destroy(writer->buffer);
+    writer->buffer = NULL;
+  }
 }
 
 void lso_writer_write_bool(lso_writer_t* writer, bool v)

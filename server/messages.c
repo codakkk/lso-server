@@ -10,8 +10,8 @@ void message_destroy(message_t* message)
   if(message->buffer != NULL) 
   {
     byte_buffer_destroy(message->buffer);
+    message->buffer = NULL;
   }
-  message->buffer = NULL;
 }
 
 message_t* message_create_from_writer(int16_t tag, lso_writer_t* writer)
@@ -55,7 +55,8 @@ lso_reader_t* message_to_reader(message_t* message)
 
 byte_buffer_t* message_to_buffer(message_t* message)
 {
-  int32_t totalLength = message->buffer->count + 2;
+  int32_t headerLength = 2;
+  int32_t totalLength = message->buffer->count + headerLength;
 
   byte_buffer_t* buffer = byte_buffer_create(totalLength);
   buffer->count = totalLength;
@@ -63,7 +64,7 @@ byte_buffer_t* message_to_buffer(message_t* message)
   write_int16(buffer, 0, message->tag);
 
   for(int i = 0; i < message->buffer->count; ++i) {
-    buffer->buffer[2+i] = message->buffer->buffer[i];
+    buffer->buffer[headerLength+i] = message->buffer->buffer[i];
   }
 
   //memcpy(buffer->buffer + buffer->buffer->offset + 2, message->buffer, message->buffer->count);

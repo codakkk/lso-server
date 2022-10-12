@@ -30,6 +30,7 @@
     "lso_writer.h": "c",
     "stdio.h": "c",
     "in.h": "c",
-    "inet.h": "c"
+    "inet.h": "c",
+    "tags.h": "c"
   }
 }
