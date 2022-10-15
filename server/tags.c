@@ -21,3 +21,6 @@ const int16_t kOnMatchTag = 10;
 const int16_t kSendMessageTag = 11;
 const int16_t kConfirmSentMessageTag = 12;
 const int16_t kRejectSentMessageTag = 13;
+
+const int16_t kLeaveRoomTag = 14;
+const int16_t kLeaveChatTag = 15;

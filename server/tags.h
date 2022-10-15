@@ -24,4 +24,7 @@ extern const int16_t kOnMatchTag;
 extern const int16_t kSendMessageTag;
 extern const int16_t kConfirmSentMessageTag;
 extern const int16_t kRejectSentMessageTag;
+
+extern const int16_t kLeaveRoomTag;
+extern const int16_t kLeaveChatTag;
 #endif

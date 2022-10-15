@@ -105,6 +105,12 @@ void _on_message_received(struct client_t* client, message_t* message)
     {
       if(room->clientsCount < MAX_CLIENTS_PER_ROOM) 
       {
+        if(client->room != NULL)  
+        {
+          room_remove_client(client->room, client);
+          client->room = NULL;
+        }
+
         room_add_client(room, client);
 
         lso_writer_t writer;
@@ -138,7 +144,7 @@ void _on_message_received(struct client_t* client, message_t* message)
     {
       char* messageText;
       int messageLength = lso_reader_read_string(reader, &messageText);
-      printf("%s sending message %s to %s.", client->name, messageText, other->name);
+      printf("%s sending message %s to %s.\n", client->name, messageText, other->name);
 
       lso_writer_t writer;
       lso_writer_initialize(&writer, messageLength);
@@ -166,7 +172,33 @@ void _on_message_received(struct client_t* client, message_t* message)
       printf("Rejecting message from client %s", client->name);
     }
   }
+  else if(message->tag == kLeaveRoomTag) 
+  {
+    if(client->room != NULL)
+    {
+      struct client_t* other = client->chat_with;
+      if(other != NULL)
+      {
+        message_t* message = message_create_empty(kLeaveChatTag);
+        client_send(other, message);
+      }
 
+      room_remove_client(client->room, client);
+    }
+  }
+  else if(message->tag == kLeaveChatTag) 
+  {
+    struct client_t* other = client->chat_with;
+    if(other != NULL)
+    {
+      client_set_chat_with(other, NULL);
+      client_set_chat_with(client, NULL);
+
+      message_t* message = message_create_empty(kLeaveChatTag);
+      client_send(other, message);
+    }
+  }
+  
   free(reader);
 }
 

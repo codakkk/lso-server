@@ -120,7 +120,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    printf("Chatroom created by Ciro Carandente, Luca Corteccioni, Giovanni Bruno\n");
+    printf("Chat-Room created by Ciro Carandente, Luca Corteccioni, Giovanni Bruno\n");
     create_rooms();
     
     pthread_t tid;
