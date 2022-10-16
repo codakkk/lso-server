@@ -142,7 +142,7 @@ int main(int argc, char **argv)
         }
         
         client_pool_lock();
-        struct client_t* client = client_create(cli_addr, connfd);
+        client_t* client = client_create(cli_addr, connfd);
         client_pool_add(client);
         client_pool_unlock();
 

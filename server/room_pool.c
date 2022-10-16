@@ -28,7 +28,7 @@ int get_room_pool_empty_index()
   return index;
 }
 
-bool room_pool_add(struct room_t* room)
+bool room_pool_add(room_t* room)
 {
   if(room == NULL)
   {
@@ -48,18 +48,18 @@ bool room_pool_add(struct room_t* room)
   return true;
 }
 
-struct room_t* room_pool_get_by_index(int index)
+room_t* room_pool_get_by_index(int index)
 {
   if(index < 0 || index >= MAX_ROOMS) return NULL;
 
   return room_pool.rooms[index];
 }
 
-struct room_t* room_pool_get_by_id(int32_t id)
+room_t* room_pool_get_by_id(int32_t id)
 {
   for(int i = 0; i < MAX_ROOMS; ++i)
   {
-    struct room_t* room = room_pool.rooms[i];
+    room_t* room = room_pool.rooms[i];
     if(room == NULL || room->id != id) continue;
     return room;
   }
@@ -73,7 +73,7 @@ message_t* create_rooms_message()
 
   for(int i = 0; i < MAX_ROOMS; ++i)
   {
-    struct room_t* room = room_pool.rooms[i];
+    room_t* room = room_pool.rooms[i];
     if(room == NULL) continue;
     lso_writer_write_int32(&writer, room->id);
     lso_writer_write_int32(&writer, room->clientsCount);

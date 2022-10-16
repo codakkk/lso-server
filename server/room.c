@@ -11,7 +11,7 @@
 
 int counter_room = 0;
 
-int find_index(struct room_t* room)
+int find_index(room_t* room)
 {
   int index = -1;
   for (int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
@@ -25,13 +25,12 @@ int find_index(struct room_t* room)
   return index;
 }
 
-
-int find_client_index(struct room_t* room, struct client_t* client)
+int find_client_index(room_t* room, client_t* client)
 {
   int index = -1;
   for (int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
   {
-    struct client_t* roomClient = room->clients[i];
+    client_t* roomClient = room->clients[i];
     if (roomClient == NULL || roomClient->uid != client->uid) continue;
     index = i;
     break;
@@ -39,9 +38,9 @@ int find_client_index(struct room_t* room, struct client_t* client)
   return index;
 }
 
-struct room_t *room_create(char name[32])
+room_t *room_create(char name[32])
 {
-  struct room_t *room = (struct room_t *)malloc(sizeof(struct room_t));
+  room_t *room = (room_t *)malloc(sizeof(room_t));
   room->id = counter_room++;
 
   pthread_mutex_init(&room->mutex, NULL);
@@ -51,18 +50,18 @@ struct room_t *room_create(char name[32])
   return room;
 }
 
-void room_lock(struct room_t* room) 
+void room_lock(room_t* room) 
 {
   pthread_mutex_lock(&room->mutex);
 }
 
-void room_unlock(struct room_t* room)
+void room_unlock(room_t* room)
 {
   pthread_mutex_unlock(&room->mutex);
 }
 
 /* Add clients to room */
-void room_add_client(struct room_t *room, struct client_t *client)
+void room_add_client(room_t *room, client_t *client)
 {
   room_lock(room);
 
@@ -72,7 +71,8 @@ void room_add_client(struct room_t *room, struct client_t *client)
     room->clients[index] = client;
     room->clientsCount++;
 
-    client_set_room(client, room);
+    client->room = room;
+    client->match = NULL;
 
     _on_enter_room(room, client);
   }
@@ -81,7 +81,7 @@ void room_add_client(struct room_t *room, struct client_t *client)
 }
 
 /* Remove client from room */
-void room_remove_client(struct room_t* room, struct client_t* client)
+void room_remove_client(room_t* room, client_t* client)
 {
   room_lock(room);
   
@@ -91,23 +91,28 @@ void room_remove_client(struct room_t* room, struct client_t* client)
     room->clients[index] = NULL;
     room->clientsCount--;
 
-    _on_leave_room(room, client);
 
-    client_set_room(client, NULL);
+    if(client->match != NULL)
+    {
+      printf("Client %s left chat with %s.\n", client->name, client->match->name);
+
+      client->match->match = NULL;
+      client->match = NULL;
+    }
+
+    printf("%s left room %s.\n", client->name, room->channelName);
+
+    client->room = NULL;
+
+    _on_leave_room(room, client);
   }
 
   room_unlock(room);
 }
 
-/* Count client in room */
-int room_count_clients(struct room_t *room)
-{
-  return room->clientsCount;
-}
-
 void *room_update(void *arg)
 {
-  struct room_t* room = (struct room_t*)arg;
+  room_t* room = (room_t*)arg;
 
   while (1)
   {
@@ -120,13 +125,13 @@ void *room_update(void *arg)
   // Room should die here
 }
 
-void _room_try_matches(struct room_t* room)
+void _room_try_matches(room_t* room)
 {
-  struct client_t* first = NULL;
+  client_t* first = NULL;
   for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i) 
   {
-    struct client_t* temp = room->clients[i];
-    if(temp == NULL || !client_is_free(temp)) continue;
+    client_t* temp = room->clients[i];
+    if(temp == NULL || temp->match != NULL) continue;
     
 
     // If we already found a match, check if the uid matches.
@@ -134,7 +139,7 @@ void _room_try_matches(struct room_t* room)
     if(first != NULL)
     {
       if(first->uid == temp->uid) continue;
-      if(first->last_chat_with != NULL && first->last_chat_with->uid == temp->uid) continue;
+      if(first->last_match != NULL && first->last_match->uid == temp->uid) continue;
     }
 
     if(first == NULL) 
@@ -146,8 +151,8 @@ void _room_try_matches(struct room_t* room)
       client_lock(first);
       client_lock(temp);
 
-      client_set_chat_with(first, temp);
-      client_set_chat_with(temp, first);
+      first->match = temp;
+      temp->match = first;
       
       client_unlock(first);
       client_unlock(temp);
@@ -158,7 +163,7 @@ void _room_try_matches(struct room_t* room)
   }
 }
 
-void _on_match(struct room_t* room, struct client_t* c1, struct client_t* c2)
+void _on_match(room_t* room, client_t* c1, client_t* c2)
 {
   // Send message to c1
   lso_writer_t writer;
@@ -187,24 +192,11 @@ void _on_match(struct room_t* room, struct client_t* c1, struct client_t* c2)
   printf("[%s] Matched %s with %s\n", room->channelName, c1->name, c2->name);
 }
 
-void _on_leave_room(struct room_t* room, struct client_t* client)
+void _on_leave_room(room_t* room, client_t* client)
 {
-  // room_pool_send_all(client);
-
-  if(client->chat_with != NULL)
-  {
-    char buff_out[BUFFER_SZ];
-
-    client_set_chat_with(client->chat_with, NULL);
-
-    sprintf(buff_out, "%s left the chat. Going back to room.\nWaiting for pairing...\n", client->name);
-    client_send_message(client->chat_with, buff_out);
-  }
-
-  printf("%s has left the room %s\n", client->name, room->channelName);
 }
 
-void _on_enter_room(struct room_t* room, struct client_t* client)
+void _on_enter_room(room_t* room, client_t* client)
 {
   printf("%s has joined the room %s\n", client->name, room->channelName);
 }

@@ -8,14 +8,14 @@
 #define MAX_CLIENTS 10
 
 struct client_pool_t {
-  struct client_t *clients[MAX_CLIENTS];
+  client_t *clients[MAX_CLIENTS];
   int size;
 
   pthread_mutex_t mutex;
 };
 
-bool client_pool_add(struct client_t* cl);
-bool client_pool_remove(struct client_t* cl);
+bool client_pool_add(client_t* cl);
+bool client_pool_remove(client_t* cl);
 bool client_pool_is_full();
 
 void client_pool_lock();

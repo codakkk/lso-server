@@ -21,14 +21,14 @@ int get_client_pool_empty_index()
   return index;
 }
 
-int find_index_in_client_pool(struct client_t* client)
+int find_index_in_client_pool(client_t* client)
 {
   int index = -1;
   if(client != NULL) 
   {
     for(int i = 0; i < MAX_CLIENTS; ++i) 
     {
-      struct client_t* temp = client_pool.clients[i];
+      client_t* temp = client_pool.clients[i];
       if(temp == NULL || temp->uid != client->uid) continue;
       index = i;
       break;
@@ -38,7 +38,7 @@ int find_index_in_client_pool(struct client_t* client)
   return index;
 }
 
-bool client_pool_add(struct client_t* client)
+bool client_pool_add(client_t* client)
 {
   if(client == NULL) return false;
 
@@ -56,7 +56,7 @@ bool client_pool_add(struct client_t* client)
   return true;
 }
 
-bool client_pool_remove(struct client_t* client)
+bool client_pool_remove(client_t* client)
 {
   if(client == NULL)
   {

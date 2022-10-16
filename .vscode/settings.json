@@ -31,6 +31,8 @@
     "stdio.h": "c",
     "in.h": "c",
     "inet.h": "c",
-    "tags.h": "c"
+    "tags.h": "c",
+    "messages.h": "c",
+    "socket.h": "c"
   }
 }

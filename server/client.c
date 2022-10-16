@@ -1,4 +1,5 @@
 #include "client.h"
+
 #include "room.h"
 #include "room_pool.h"
 #include "client_pool.h"
@@ -17,15 +18,15 @@
 
 int counter_client = 0;
 
-struct client_t* client_create(struct sockaddr_in address, int connfd) 
+client_t* client_create(struct sockaddr_in address, int connfd) 
 { 
-  struct client_t *cli = (struct client_t *)malloc(sizeof(struct client_t));
+  client_t *cli = (client_t *)malloc(sizeof(client_t));
   cli->address = address;
   cli->sockfd = connfd;
   cli->uid = counter_client++;
 
-  cli->chat_with = NULL;
-  cli->last_chat_with = NULL;
+  cli->match = NULL;
+  cli->last_match = NULL;
   cli->room = NULL;
 
   pthread_mutex_init(&cli->mutex, NULL);
@@ -33,50 +34,17 @@ struct client_t* client_create(struct sockaddr_in address, int connfd)
   return cli;
 }
 
-void client_lock(struct client_t* client) 
+void client_lock(client_t* client) 
 {
   pthread_mutex_lock(&client->mutex); 
 }
 
-void client_unlock(struct client_t* client)
+void client_unlock(client_t* client)
 {
   pthread_mutex_unlock(&client->mutex);
 }
 
-bool client_send_message(struct client_t* client, char* message) 
-{
-  if(client == NULL) return false;
-  
-  if(write(client->sockfd, message, strlen(message)) < 0) 
-  {
-    perror("ERROR(client_send_message): write to descriptor failed.");
-    return false;
-  }
-  return true;
-}
-
-void client_set_room(struct client_t* client, struct room_t* room) 
-{
-  if(room == client->room) return;
-
-  client->room = room;
-  client->chat_with = NULL;
-}
-
-void client_set_chat_with(struct client_t* client, struct client_t* with) 
-{
-  if(with == client->chat_with) return;
-
-  client->last_chat_with = client->chat_with;
-  client->chat_with = with;
-}
-
-bool client_is_free(struct client_t* client)
-{
-  return client->chat_with == NULL;
-}
-
-void _on_message_received(struct client_t* client, message_t* message)
+void _on_message_received(client_t* client, message_t* message)
 {
   lso_reader_t* reader = message_to_reader(message);
   if(message->tag == SendFirstConfigurationTag) 
@@ -99,7 +67,7 @@ void _on_message_received(struct client_t* client, message_t* message)
   else if(message->tag == kJoinRoomTag)
   {
     int32_t roomId = lso_reader_read_int32(reader);
-    struct room_t* room = room_pool_get_by_id(roomId);
+    room_t* room = room_pool_get_by_id(roomId);
 
     if(room != NULL) 
     {
@@ -139,7 +107,7 @@ void _on_message_received(struct client_t* client, message_t* message)
   }
   else if(message->tag == kSendMessageTag)
   {
-    struct client_t* other = client->chat_with;
+    client_t* other = client->match;
     if(other != NULL) 
     {
       char* messageText;
@@ -176,7 +144,7 @@ void _on_message_received(struct client_t* client, message_t* message)
   {
     if(client->room != NULL)
     {
-      struct client_t* other = client->chat_with;
+      client_t* other = client->match;
       if(other != NULL)
       {
         message_t* message = message_create_empty(kLeaveChatTag);
@@ -188,11 +156,14 @@ void _on_message_received(struct client_t* client, message_t* message)
   }
   else if(message->tag == kLeaveChatTag) 
   {
-    struct client_t* other = client->chat_with;
+    client_t* other = client->match;
     if(other != NULL)
     {
-      client_set_chat_with(other, NULL);
-      client_set_chat_with(client, NULL);
+      other->last_match = other->match;
+      other->match = NULL;
+
+      client->last_match = client->match;
+      client->match = NULL;
 
       message_t* message = message_create_empty(kLeaveChatTag);
       client_send(other, message);
@@ -204,7 +175,7 @@ void _on_message_received(struct client_t* client, message_t* message)
 
 void* _client_handler(void* args) 
 {
-  struct client_t* client = (struct client_t*)args;
+  client_t* client = (client_t*)args;
 
   if(client == NULL) 
   {
@@ -243,60 +214,7 @@ void* _client_handler(void* args)
     free(message);
     free(byteBuffer);
 
-    /*
-    if(numBytesRead > 0) 
-    {
-      if(strlen(msgBuffer) > 0)
-      {
-        if(strcmp(msgBuffer, "/exit\n") == 0)
-        {
-          leaveFlag = true;
-        }
-        else if(client->room == NULL)
-        {
-          if(strcmp(msgBuffer, "0"))
-          {
-            int selectedRoomIndex = atoi(msgBuffer);
-            struct room_t* room = room_pool_get_by_index(selectedRoomIndex);
 
-            if(room != NULL) 
-            {
-              room_add_client(room, client);
-
-              client_send_message(client, "Waiting for pairing...\n");
-            }
-          }
-        }
-
-        else if(client->room != NULL && strcmp(msgBuffer, "/exitroom\n") == 0) 
-        {
-          room_remove_client(client->room, client);
-        }
-
-        else if(client->chat_with != NULL) 
-        {
-          if(strcmp(msgBuffer, "/exitchat\n") == 0) 
-          {
-            sprintf(msgBuffer, "%s left the chat. Searching for new match...\n", client->name);
-            client_send_message(client->chat_with, msgBuffer);
-
-            client_set_chat_with(client->chat_with, NULL);
-
-            client_send_message(client, "You've left the chat. Searching for new match...\n");
-            client_set_chat_with(client, NULL);
-          }
-          else
-          {
-            client_send_message(client->chat_with, msgBuffer);
-          }
-        }
-      }
-    }
-    else if(numBytesRead == 0)
-    {
-      leaveFlag = true;
-    }
-    */
     bzero(msgBuffer, BUFFER_SIZE);
   }
 
@@ -316,7 +234,7 @@ void* _client_handler(void* args)
   free(client);
 }
 
-bool client_send(struct client_t* client, message_t* message)
+bool client_send(client_t* client, message_t* message)
 {
   // byte_buffer_print_debug(message->buffer);
   
