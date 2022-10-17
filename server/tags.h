@@ -21,7 +21,7 @@ extern const int16_t kJoinRoomAcceptedTag;
 extern const int16_t kJoinRoomRefusedTag;
 
 extern const int16_t kOnMatchTag;
-extern const int16_t kSendMessageTag;
+extern const int16_t kMessageTag;
 extern const int16_t kConfirmSentMessageTag;
 extern const int16_t kRejectSentMessageTag;
 

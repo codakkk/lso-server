@@ -10,7 +10,8 @@
 typedef struct client_t {
     struct sockaddr_in address;
 
-    struct client_t* match;
+    struct chat_t* current_chat;
+
     struct client_t* last_match;
     struct room_t* room;
 

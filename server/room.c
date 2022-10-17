@@ -1,15 +1,39 @@
 #include "room.h"
 #include "client.h"
-#include "room_pool.h"
 #include "tags.h"
+#include "chat.h"
 
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
 
-#define BUFFER_SZ 2048
-
 int counter_room = 0;
+room_t* gRooms[10];
+
+int32_t find_empty_chat_index(room_t* room)
+{
+  int index = -1;
+  for (int i = 0; i < MAX_CHAT_PER_ROOM; ++i)
+  {
+    if(room->chats[i] != NULL) continue;
+    index = i;
+    break;
+  }
+  return index;
+}
+
+int32_t find_chat_by_index(room_t* room, chat_t* chat)
+{
+  int index = -1;
+  for (int i = 0; i < MAX_CHAT_PER_ROOM; ++i)
+  {
+    chat_t* tempChat = room->chats[i];
+    if (tempChat == NULL || tempChat != chat) continue;
+    index = i;
+    break;
+  }
+  return index;
+}
 
 int find_index(room_t* room)
 {
@@ -61,68 +85,52 @@ void room_unlock(room_t* room)
 }
 
 /* Add clients to room */
-void room_add_client(room_t *room, client_t *client)
+bool room_try_join(room_t *room, client_t *client)
 {
-  room_lock(room);
-
   int index = find_index(room);
-  if(index != -1)
+
+  // Room is full
+  if(index == -1) 
   {
-    room->clients[index] = client;
-    room->clientsCount++;
-
-    client->room = room;
-    client->match = NULL;
-
-    _on_enter_room(room, client);
+    return false;
   }
 
+  room_lock(room);
+  
+  room->clients[index] = client;
+  room->clientsCount++;
+
+  client->room = room;
+  client->current_chat = NULL;
+
   room_unlock(room);
+
+  _on_enter_room(room, client);
 }
 
 /* Remove client from room */
-void room_remove_client(room_t* room, client_t* client)
-{
+bool room_leave(room_t* room, client_t* client)
+{ 
+  if(room == NULL) 
+  {
+    return false;
+  }
+
+  int index = find_client_index(room, client);
+  if(index == -1)
+  {
+    return false;
+  }
+
   room_lock(room);
   
-  int index = find_client_index(room, client);
-  if(index != -1)
-  {
-    room->clients[index] = NULL;
-    room->clientsCount--;
-
-
-    if(client->match != NULL)
-    {
-      printf("Client %s left chat with %s.\n", client->name, client->match->name);
-
-      client->match->match = NULL;
-      client->match = NULL;
-    }
-
-    printf("%s left room %s.\n", client->name, room->channelName);
-
-    client->room = NULL;
-
-    _on_leave_room(room, client);
-  }
+  room->clients[index] = NULL;
+  room->clientsCount--;
 
   room_unlock(room);
-}
 
-void *room_update(void *arg)
-{
-  room_t* room = (room_t*)arg;
-
-  while (1)
-  {
-    _room_try_matches(room);
-
-    sleep(1);
-  }
-
-  free(room);
-  // Room should die here
+  client->room = NULL;
+  _on_leave_room(room, client);
 }
 
 void _room_try_matches(room_t* room)
@@ -131,7 +139,7 @@ void _room_try_matches(room_t* room)
   for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i) 
   {
     client_t* temp = room->clients[i];
-    if(temp == NULL || temp->match != NULL) continue;
+    if(temp == NULL || temp->current_chat != NULL) continue;
     
 
     // If we already found a match, check if the uid matches.
@@ -148,15 +156,6 @@ void _room_try_matches(room_t* room)
     }
     else 
     {
-      client_lock(first);
-      client_lock(temp);
-
-      first->match = temp;
-      temp->match = first;
-      
-      client_unlock(first);
-      client_unlock(temp);
-
       _on_match(room, first, temp);
       break;
     }
@@ -165,38 +164,74 @@ void _room_try_matches(room_t* room)
 
 void _on_match(room_t* room, client_t* c1, client_t* c2)
 {
-  // Send message to c1
-  lso_writer_t writer;
-  lso_writer_initialize(&writer, 8);
-  lso_writer_write_int32(&writer, room->id);
-  lso_writer_write_int32(&writer, c2->uid);
-  lso_writer_write_string(&writer, c2->name);
+  int32_t chatIndex = find_empty_chat_index(room);
+  if(chatIndex != -1)
+  {
+    chat_t* chat = chat_create(c1, c2);
 
-  message_t* c1MatchedMessage = message_create_from_writer(kOnMatchTag, &writer);
-  client_send(c1, c1MatchedMessage);
+    client_lock(c1);
+    client_lock(c2);
+    
+    c1->current_chat = c2->current_chat = chat;
+    
+    client_unlock(c1);
+    client_unlock(c2);
 
-  message_destroy(c1MatchedMessage);
-
-  // Send message to c2
-  lso_writer_t c2Writer;
-  lso_writer_initialize(&c2Writer, 8);
-  lso_writer_write_int32(&c2Writer, room->id);
-  lso_writer_write_int32(&c2Writer, c1->uid);
-  lso_writer_write_string(&c2Writer, c1->name);
-
-  message_t* c2MatchedMessage = message_create_from_writer(kOnMatchTag, &c2Writer);
-  client_send(c2, c2MatchedMessage);
-  
-  message_destroy(c2MatchedMessage);
-
-  printf("[%s] Matched %s with %s\n", room->channelName, c1->name, c2->name);
+    room->chats[chatIndex] = chat;
+    
+    printf("[%s] Matched %s with %s\n", room->channelName, c1->name, c2->name);
+  }
 }
 
 void _on_leave_room(room_t* room, client_t* client)
 {
+  chat_t* clientChat = client->current_chat;
+
+  if(clientChat != NULL)
+  {
+    int32_t chatIndex = find_chat_by_index(room, clientChat);
+
+    client_t* clientMatch = clientChat->client1->uid == client->uid ? clientChat->client2 : clientChat->client1;
+
+    chat_close(clientChat);
+
+    message_t* message = message_create_empty(kLeaveChatTag);
+    client_send(clientMatch, message);
+
+    printf("Client %s left chat with %s.\n", client->name, clientMatch->name);
+
+    free(client->current_chat);  
+  }
+
+  printf("%s left room %s.\n", client->name, room->channelName);
 }
 
 void _on_enter_room(room_t* room, client_t* client)
 {
   printf("%s has joined the room %s\n", client->name, room->channelName);
+}
+
+void *room_update(void *arg)
+{
+  room_t* room = (room_t*)arg;
+
+  while (1)
+  {
+    _room_try_matches(room);
+
+    for(int i = 0; i < MAX_CHAT_PER_ROOM; ++i)
+    {
+      chat_t* chat = room->chats[i];
+      if(chat == NULL) continue;
+
+      if(chat_is_over(chat))
+      {
+
+      }
+    }
+    sleep(1);
+  }
+
+  free(room);
+  // Room should die here
 }

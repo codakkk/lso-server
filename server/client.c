@@ -1,7 +1,6 @@
 #include "client.h"
 
 #include "room.h"
-#include "room_pool.h"
 #include "client_pool.h"
 #include "utils.h"
 #include "messages.h"
@@ -25,8 +24,9 @@ client_t* client_create(struct sockaddr_in address, int connfd)
   cli->sockfd = connfd;
   cli->uid = counter_client++;
 
-  cli->match = NULL;
+  cli->current_chat = NULL;
   cli->last_match = NULL;
+
   cli->room = NULL;
 
   pthread_mutex_init(&cli->mutex, NULL);
@@ -44,130 +44,163 @@ void client_unlock(client_t* client)
   pthread_mutex_unlock(&client->mutex);
 }
 
+void _handle_first_configuration_tag(client_t* client, lso_reader_t* reader)
+{
+  lso_reader_read_string(reader, &client->name);
+
+  message_t* message = message_create_empty(FirstConfigurationAcceptedTag);
+  client_send(client, message);
+  
+  message_destroy(message);
+  free(message);
+
+  printf("%s has joined the server\n", client->name);
+}
+
+void _handle_request_rooms_tag(client_t* client)
+{
+  lso_writer_t writer;
+  lso_writer_initialize(&writer, sizeof(4 + 4 + 32));
+
+  for(int i = 0; i < MAX_ROOMS; ++i)
+  {
+    room_t* room = gRooms[i];
+    if(room == NULL) continue;
+    lso_writer_write_int32(&writer, room->id);
+    lso_writer_write_int32(&writer, room->clientsCount);
+    lso_writer_write_int32(&writer, MAX_CLIENTS_PER_ROOM);
+    lso_writer_write_string(&writer, room->channelName);
+  }
+
+  message_t* message = message_create_from_writer(kRoomTag, &writer);
+  client_send(client, message);
+
+  message_destroy(message);
+  free(message);
+}
+
+void _handle_join_room_tag(client_t* client, lso_reader_t* reader)
+{
+  int32_t roomId = lso_reader_read_int32(reader);
+  room_t* room = gRooms[roomId];
+
+  if(room != NULL) 
+  {
+    if(room_try_join(room, client))
+    {
+      lso_writer_t writer;
+      lso_writer_initialize(&writer, 4);
+      lso_writer_write_int32(&writer, roomId);
+
+      message_t* joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
+      client_send(client, joinAcceptedMessage);
+
+      message_destroy(joinAcceptedMessage);
+      free(joinAcceptedMessage);
+    }
+    else 
+    {
+      lso_writer_t writer;
+      lso_writer_initialize(&writer, 4);
+      lso_writer_write_int32(&writer, roomId);
+
+      message_t* joinRoomRefusedMessage = message_create_from_writer(kJoinRoomRefusedTag, &writer);
+      client_send(client, joinRoomRefusedMessage);
+
+      message_destroy(joinRoomRefusedMessage);
+      free(joinRoomRefusedMessage);
+    }
+  }
+}
+
+void _handle_leave_chat_tag(client_t* client, lso_reader_t* reader)
+{
+  chat_t* chat = client->current_chat;
+
+  if(chat == NULL) return;
+
+  client_t* other = client->uid == chat->client1->uid ? chat->client2 : chat->client1;
+
+  other->last_match = client;
+  other->current_chat = NULL;
+
+  client->last_match = other;
+  client->current_chat = NULL;
+
+  message_t* message = message_create_empty(kLeaveChatTag);
+  client_send(other, message);
+
+  message_destroy(message);
+  free(message);
+}
+
+void _handle_message_tag(client_t* client, lso_reader_t* reader)
+{
+  chat_t* chat = client->current_chat;
+
+  if(chat == NULL)
+  {
+    message_t* message = message_create_empty(kRejectSentMessageTag);
+    client_send(client, message);
+    
+    message_destroy(message);
+    free(message);
+
+    printf("Rejecting message from client %s", client->name);
+    return;
+  }
+
+  client_t* other = client->uid == chat->client1->uid ? chat->client2 : chat->client1;
+
+  char* messageText;
+  int messageLength = lso_reader_read_string(reader, &messageText);
+  printf("Client %s sent message \"%s\" to %s.\n", client->name, messageText, other->name);
+
+  // Send confirmation to sender
+  lso_writer_t writer;
+  lso_writer_initialize(&writer, messageLength);
+  lso_writer_write_string(&writer, messageText);
+
+  message_t* message = message_create_from_writer(kConfirmSentMessageTag, &writer);
+  client_send(client, message);
+  message_destroy(message);
+  free(message);
+
+
+  // Send message to other client
+  message = message_create_from_writer(kMessageTag, &writer);
+  client_send(other, message);
+
+  message_destroy(message);
+  free(message);
+}
+
 void _on_message_received(client_t* client, message_t* message)
 {
   lso_reader_t* reader = message_to_reader(message);
   if(message->tag == SendFirstConfigurationTag) 
   {
-    lso_reader_read_string(reader, &client->name);
-    printf("%s has joined the server\n", client->name);
-
-    message_t* message = message_create_empty(FirstConfigurationAcceptedTag);
-    client_send(client, message);
-    
-    message_destroy(message);
-    free(message);
+    _handle_first_configuration_tag(client, reader);
   }
   else if(message->tag == RequestRoomsTag)
   {
-    message_t* message = create_rooms_message();
-
-    client_send(client, message);
+    _handle_request_rooms_tag(client);
   }
   else if(message->tag == kJoinRoomTag)
   {
-    int32_t roomId = lso_reader_read_int32(reader);
-    room_t* room = room_pool_get_by_id(roomId);
-
-    if(room != NULL) 
-    {
-      if(room->clientsCount < MAX_CLIENTS_PER_ROOM) 
-      {
-        if(client->room != NULL)  
-        {
-          room_remove_client(client->room, client);
-          client->room = NULL;
-        }
-
-        room_add_client(room, client);
-
-        lso_writer_t writer;
-        lso_writer_initialize(&writer, 4);
-        lso_writer_write_int32(&writer, roomId);
-
-        message_t* joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
-        client_send(client, joinAcceptedMessage);
-
-        message_destroy(joinAcceptedMessage);
-        free(joinAcceptedMessage);
-      }
-      else
-      {
-        lso_writer_t writer;
-        lso_writer_initialize(&writer, 4);
-        lso_writer_write_int32(&writer, roomId);
-
-        message_t* joinRoomRefusedMessage = message_create_from_writer(kJoinRoomRefusedTag, &writer);
-        client_send(client, joinRoomRefusedMessage);
-
-        message_destroy(joinRoomRefusedMessage);
-        free(joinRoomRefusedMessage);
-      }
-    }
+    _handle_join_room_tag(client, reader);
   }
-  else if(message->tag == kSendMessageTag)
+  else if(message->tag == kMessageTag)
   {
-    client_t* other = client->match;
-    if(other != NULL) 
-    {
-      char* messageText;
-      int messageLength = lso_reader_read_string(reader, &messageText);
-      printf("%s sending message %s to %s.\n", client->name, messageText, other->name);
-
-      lso_writer_t writer;
-      lso_writer_initialize(&writer, messageLength);
-      lso_writer_write_string(&writer, messageText);
-
-      message_t* message = message_create_from_writer(kConfirmSentMessageTag, &writer);
-      client_send(client, message);
-
-      free(message);
-      
-      message = message_create_from_writer(kSendMessageTag, &writer);
-      client_send(other, message);
-
-      message_destroy(message);
-      free(message);
-    } 
-    else 
-    {
-      message_t* message = message_create_empty(kRejectSentMessageTag);
-      client_send(client, message);
-      
-      message_destroy(message);
-      free(message);
-
-      printf("Rejecting message from client %s", client->name);
-    }
+    _handle_message_tag(client, reader);
   }
   else if(message->tag == kLeaveRoomTag) 
   {
-    if(client->room != NULL)
-    {
-      client_t* other = client->match;
-      if(other != NULL)
-      {
-        message_t* message = message_create_empty(kLeaveChatTag);
-        client_send(other, message);
-      }
-
-      room_remove_client(client->room, client);
-    }
+    room_leave(client->room, client);
   }
   else if(message->tag == kLeaveChatTag) 
   {
-    client_t* other = client->match;
-    if(other != NULL)
-    {
-      other->last_match = other->match;
-      other->match = NULL;
-
-      client->last_match = client->match;
-      client->match = NULL;
-
-      message_t* message = message_create_empty(kLeaveChatTag);
-      client_send(other, message);
-    }
+    _handle_leave_chat_tag(client, reader);
   }
   
   free(reader);
@@ -219,10 +252,7 @@ void* _client_handler(void* args)
   }
 
 
-  if(client->room != NULL)
-  {
-    room_remove_client(client->room, client);
-  }
+  room_leave(client->room, client);
 
   printf("%s left the server\n", client->name);
 

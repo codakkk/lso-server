@@ -40,13 +40,15 @@ byte_buffer_t* byte_buffer_create_from_bytes(int32_t size, int8_t* bytes)
 
 byte_buffer_t* byte_buffer_clone(byte_buffer_t* bf) 
 {
-  byte_buffer_t* buffer = malloc(sizeof(byte_buffer_t));
-  
-  buffer->buffer = bf->buffer;
-  buffer->capacity = bf->capacity;
-
+  byte_buffer_t* buffer = byte_buffer_create_from_bytes(bf->capacity, bf->buffer);
   buffer->offset = bf->offset;
   buffer->count = bf->count;
+
+  // buffer->buffer = bf->buffer;
+  // buffer->capacity = bf->capacity;
+
+  // buffer->offset = bf->offset;
+  // buffer->count = bf->count;
   return buffer;
 }
 

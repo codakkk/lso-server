@@ -14,7 +14,6 @@
 #include "./client.h"
 #include "./room.h"
 #include "client_pool.h"
-#include "room_pool.h"
 #include "utils.h"
 
 #define BUFFER_SZ 2048
@@ -34,11 +33,10 @@ void print_client_addr(struct sockaddr_in addr)
 void create_rooms()
 {
     printf("Generating rooms...\n");
-    room_pool_initialize();
-    room_pool_add(room_create("Aldo, Giovanni e Giacomo"));
-    room_pool_add(room_create("Sport"));
-    room_pool_add(room_create("Barzellette!"));
-    // room_pool_list_all();
+    gRooms[0] = room_create("Aldo, Giovanni e Giacomo");
+    gRooms[1] = room_create("Sport");
+    gRooms[2] = room_create("Barzellette!");
+
     printf("Rooms generated.\n");
 }
 
@@ -46,11 +44,27 @@ int main(int argc, char **argv)
 {
     if (argc != 2)
     {
-        int32_t v1 = 100;
+        printf("64 bits test: \n");
+
+        lso_writer_t writer;
+        lso_writer_initialize(&writer, 8);
+        lso_writer_write_int64(&writer, 10L);
+
+        byte_buffer_print_debug(writer.buffer);
+        
+        if(read_int64(writer.buffer, 0) == 10L) 
+        {
+            printf("The same\n");
+        } else 
+        {
+            printf("Not the same\n");
+        }
+
+        /*int32_t v1 = 100;
         int16_t v2 = 300;
 
         printf("Using ByteBuffer: \n");
-        byte_buffer_t* bf = byte_buffer_create(6);
+        bf = byte_buffer_create(6);
         write_int32(bf, 0, v1);
         write_int16(bf, 4, v2);
         printf("%d == %d - %d == %d\n", v1, read_int32(bf, 0), v2, read_int16(bf, 4));
@@ -76,7 +90,7 @@ int main(int argc, char **argv)
         int32_t reader32 = lso_reader_read_int32(reader);
         int16_t reader16 = lso_reader_read_int16(reader);
         printf("%d == %d - %d == %d\n", v1, reader32, v2, reader16);
-        printf("==================\n\n");
+        printf("==================\n\n");*/
 
         printf("Usage: %s <port>\n", argv[0]);
         return EXIT_FAILURE;
@@ -145,20 +159,6 @@ int main(int argc, char **argv)
         client_t* client = client_create(cli_addr, connfd);
         client_pool_add(client);
         client_pool_unlock();
-
-        /*int16_t sz = 1; // bytes
-        unsigned char* buffer = malloc(sz), *ptr;
-        serialize_char(buffer, 1);
-
-        int result = send(connfd, buffer, sz, 0);
-
-        if(result < 0) 
-        {
-            printf("Error sending client accepted message");
-            continue;
-        }*/
-        
-        // room_pool_list_all();
 
         /* Reduce CPU usage */
         sleep(1);

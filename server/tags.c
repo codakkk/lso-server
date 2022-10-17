@@ -18,7 +18,7 @@ const int16_t kJoinRoomRefusedTag = 9;
 
 const int16_t kOnMatchTag = 10;
 
-const int16_t kSendMessageTag = 11;
+const int16_t kMessageTag = 11;
 const int16_t kConfirmSentMessageTag = 12;
 const int16_t kRejectSentMessageTag = 13;
 

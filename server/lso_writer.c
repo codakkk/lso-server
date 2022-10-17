@@ -61,6 +61,16 @@ void lso_writer_write_int32(lso_writer_t* writer, int32_t v)
   writer->buffer->count = MAX(writer->buffer->count, writer->position);
 }
 
+void lso_writer_write_int64(lso_writer_t* writer, int64_t v)
+{
+  byte_buffer_ensure_size(writer->buffer, writer->position + 8);
+  write_int64(writer->buffer, writer->position, v);
+
+  writer->position += 8;
+
+  writer->buffer->count = MAX(writer->buffer->count, writer->position);
+}
+
 void lso_writer_write_string(lso_writer_t* writer, char* str)
 {
   byte_buffer_ensure_size(writer->buffer, writer->position + sizeof(int32_t) + strlen(str));
