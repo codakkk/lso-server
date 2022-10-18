@@ -12,6 +12,7 @@ typedef struct {
 } lso_reader_t;
 
 lso_reader_t* lso_reader_create(byte_buffer_t* buffer);
+void lso_reader_delete(lso_reader_t* reader);
 
 bool lso_reader_read_bool(lso_reader_t* reader);
 int8_t lso_reader_read_int8(lso_reader_t* reader);

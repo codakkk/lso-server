@@ -136,14 +136,12 @@ int main(int argc, char **argv)
 
     printf("Chat-Room created by Ciro Carandente, Luca Corteccioni, Giovanni Bruno\n");
     create_rooms();
-    
-    pthread_t tid;
-    int connfd;
-    struct sockaddr_in cli_addr;
+
     while (1)
     {
+        struct sockaddr_in cli_addr;
         socklen_t clilen = sizeof(cli_addr);
-        connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
+        int connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
 
         /* Check if max clients is reached */
         if (client_pool_is_full())

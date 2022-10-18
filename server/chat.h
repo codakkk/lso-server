@@ -14,7 +14,10 @@ typedef struct chat_t {
   int64_t start_timestamp;
 } chat_t;
 
+
 chat_t* chat_create(client_t* client1, client_t* client2);
+void chat_delete(chat_t* chat);
+
 int32_t chat_is_over(chat_t* chat);
 
 void chat_close(chat_t* chat);

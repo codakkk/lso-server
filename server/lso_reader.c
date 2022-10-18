@@ -13,6 +13,15 @@ lso_reader_t* lso_reader_create(byte_buffer_t* buffer)
   return reader;
 }
 
+void lso_reader_delete(lso_reader_t* reader)
+{
+  if(reader == NULL) {
+    return;
+  }
+
+  free(reader);
+}
+
 bool lso_reader_read_bool(lso_reader_t* reader)
 {
   if(reader->position >= reader->buffer->count) 

@@ -32,6 +32,7 @@ typedef struct room_t {
 } room_t;
 
 room_t* room_create(char name[MAX_ROOM_NAME]);
+void room_delete(room_t* room);
 
 void room_lock(room_t* room);
 void room_unlock(room_t* room);

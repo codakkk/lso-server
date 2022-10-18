@@ -12,7 +12,7 @@ typedef struct {
   byte_buffer_t* buffer;
 } message_t;
 
-void message_destroy(message_t* buffer);
+void message_delete(message_t* buffer);
 
 message_t* message_create_from_writer(int16_t tag, lso_writer_t* writer);
 message_t* message_create_from_byte_buffer(byte_buffer_t* buffer);

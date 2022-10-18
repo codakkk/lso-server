@@ -5,13 +5,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-void message_destroy(message_t* message)
+void message_delete(message_t* message)
 {
+  if(message == NULL) {
+    return;
+  }
+
   if(message->buffer != NULL) 
   {
-    byte_buffer_destroy(message->buffer);
+    byte_buffer_delete(message->buffer);
     message->buffer = NULL;
   }
+
+  free(message);
 }
 
 message_t* message_create_from_writer(int16_t tag, lso_writer_t* writer)

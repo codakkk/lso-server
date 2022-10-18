@@ -27,4 +27,5 @@ extern const int16_t kRejectSentMessageTag;
 
 extern const int16_t kLeaveRoomTag;
 extern const int16_t kLeaveChatTag;
+extern const int16_t kChatTimeoutTag;
 #endif

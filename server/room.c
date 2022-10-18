@@ -74,6 +74,23 @@ room_t *room_create(char name[32])
   return room;
 }
 
+void room_delete(room_t* room)
+{
+  if(room == NULL) {
+    return;
+  }
+
+  for(int i = 0; i < MAX_CHAT_PER_ROOM; ++i) 
+  {
+    if(room->chats[i] == NULL) continue;
+    chat_delete(room->chats[i]);
+
+    room->chats[i] = NULL;
+  }
+
+  free(room);
+}
+
 void room_lock(room_t* room) 
 {
   pthread_mutex_lock(&room->mutex);
@@ -200,7 +217,7 @@ void _on_leave_room(room_t* room, client_t* client)
 
     printf("Client %s left chat with %s.\n", client->name, clientMatch->name);
 
-    free(client->current_chat);  
+    chat_delete(client->current_chat);
   }
 
   printf("%s left room %s.\n", client->name, room->channelName);
@@ -226,12 +243,21 @@ void *room_update(void *arg)
 
       if(chat_is_over(chat))
       {
+        chat_delete(chat);
+        room->chats[i] = NULL;
 
+        message_t* message = message_create_empty(kChatTimeoutTag);
+
+        client_send(chat->client1, message);
+        client_send(chat->client2, message);
+        
+        message_delete(message);
       }
     }
+
     sleep(1);
   }
 
-  free(room);
+  room_delete(room);
   // Room should die here
 }

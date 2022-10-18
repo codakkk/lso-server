@@ -33,6 +33,7 @@
     "inet.h": "c",
     "tags.h": "c",
     "messages.h": "c",
-    "socket.h": "c"
+    "socket.h": "c",
+    "chat.h": "c"
   }
 }

@@ -18,7 +18,7 @@ void lso_writer_destroy(lso_writer_t* writer)
 {
   if(writer->buffer != NULL)
   {
-    byte_buffer_destroy(writer->buffer);
+    byte_buffer_delete(writer->buffer);
     writer->buffer = NULL;
   }
 }

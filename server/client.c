@@ -51,8 +51,7 @@ void _handle_first_configuration_tag(client_t* client, lso_reader_t* reader)
   message_t* message = message_create_empty(FirstConfigurationAcceptedTag);
   client_send(client, message);
   
-  message_destroy(message);
-  free(message);
+  message_delete(message);
 
   printf("%s has joined the server\n", client->name);
 }
@@ -75,8 +74,7 @@ void _handle_request_rooms_tag(client_t* client)
   message_t* message = message_create_from_writer(kRoomTag, &writer);
   client_send(client, message);
 
-  message_destroy(message);
-  free(message);
+  message_delete(message);
 }
 
 void _handle_join_room_tag(client_t* client, lso_reader_t* reader)
@@ -95,8 +93,7 @@ void _handle_join_room_tag(client_t* client, lso_reader_t* reader)
       message_t* joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
       client_send(client, joinAcceptedMessage);
 
-      message_destroy(joinAcceptedMessage);
-      free(joinAcceptedMessage);
+      message_delete(joinAcceptedMessage);
     }
     else 
     {
@@ -107,8 +104,7 @@ void _handle_join_room_tag(client_t* client, lso_reader_t* reader)
       message_t* joinRoomRefusedMessage = message_create_from_writer(kJoinRoomRefusedTag, &writer);
       client_send(client, joinRoomRefusedMessage);
 
-      message_destroy(joinRoomRefusedMessage);
-      free(joinRoomRefusedMessage);
+      message_delete(joinRoomRefusedMessage);
     }
   }
 }
@@ -130,8 +126,7 @@ void _handle_leave_chat_tag(client_t* client, lso_reader_t* reader)
   message_t* message = message_create_empty(kLeaveChatTag);
   client_send(other, message);
 
-  message_destroy(message);
-  free(message);
+  message_delete(message);
 }
 
 void _handle_message_tag(client_t* client, lso_reader_t* reader)
@@ -143,8 +138,7 @@ void _handle_message_tag(client_t* client, lso_reader_t* reader)
     message_t* message = message_create_empty(kRejectSentMessageTag);
     client_send(client, message);
     
-    message_destroy(message);
-    free(message);
+    message_delete(message);
 
     printf("Rejecting message from client %s", client->name);
     return;
@@ -163,16 +157,13 @@ void _handle_message_tag(client_t* client, lso_reader_t* reader)
 
   message_t* message = message_create_from_writer(kConfirmSentMessageTag, &writer);
   client_send(client, message);
-  message_destroy(message);
-  free(message);
-
+  message_delete(message);
 
   // Send message to other client
   message = message_create_from_writer(kMessageTag, &writer);
   client_send(other, message);
 
-  message_destroy(message);
-  free(message);
+  message_delete(message);
 }
 
 void _on_message_received(client_t* client, message_t* message)
@@ -203,7 +194,7 @@ void _on_message_received(client_t* client, message_t* message)
     _handle_leave_chat_tag(client, reader);
   }
   
-  free(reader);
+  lso_reader_delete(reader);
 }
 
 void* _client_handler(void* args) 
@@ -221,7 +212,6 @@ void* _client_handler(void* args)
 
   message_t* acceptedMessage = message_create_empty(JoinRequestAcceptedTag);
   client_send(client, acceptedMessage);
-  free(acceptedMessage);
 
   char msgBuffer[BUFFER_SIZE]; 
   bool leaveFlag = false;
@@ -243,9 +233,8 @@ void* _client_handler(void* args)
 
     _on_message_received(client, message);
 
-    //message_destroy(message);
-    free(message);
-    free(byteBuffer);
+    message_delete(message);
+    //byte_buffer_delete(byteBuffer);
 
 
     bzero(msgBuffer, BUFFER_SIZE);
@@ -278,7 +267,6 @@ bool client_send(client_t* client, message_t* message)
     printf("DEBUG: Error sending message with tag: %d\n", message->tag);
     return false;
   }
-  byte_buffer_destroy(buffer);
-  free(buffer);
+  byte_buffer_delete(buffer);
   return true;
 }

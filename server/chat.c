@@ -1,6 +1,8 @@
 #include "chat.h"
 #include "tags.h"
 
+#include <pthread.h>
+
 chat_t* chat_create(client_t* client1, client_t* client2)
 {
   if(client1 == NULL || client2 == NULL)
@@ -22,12 +24,13 @@ chat_t* chat_create(client_t* client1, client_t* client2)
   lso_writer_write_int32(&writer, client2->uid);
   lso_writer_write_string(&writer, client2->name);
   lso_writer_write_int64(&writer, chat->start_timestamp);
+  lso_writer_write_int64(&writer, chat->start_timestamp + MAX_CHAT_TIME_IN_SECONDS);
   lso_writer_write_int32(&writer, MAX_CHAT_TIME_IN_SECONDS);
 
-  message_t* c1MatchedMessage = message_create_from_writer(kOnMatchTag, &writer);
-  client_send(client1, c1MatchedMessage);
+  message_t* message = message_create_from_writer(kOnMatchTag, &writer);
+  client_send(client1, message);
 
-  message_destroy(c1MatchedMessage);
+  message_delete(message);
 
   // Send message to c2
   lso_writer_t c2Writer;
@@ -35,14 +38,24 @@ chat_t* chat_create(client_t* client1, client_t* client2)
   lso_writer_write_int32(&c2Writer, client1->uid);
   lso_writer_write_string(&c2Writer, client1->name);
   lso_writer_write_int64(&c2Writer, chat->start_timestamp);
+  lso_writer_write_int64(&c2Writer, chat->start_timestamp + MAX_CHAT_TIME_IN_SECONDS);
   lso_writer_write_int32(&c2Writer, MAX_CHAT_TIME_IN_SECONDS);
 
-  message_t* c2MatchedMessage = message_create_from_writer(kOnMatchTag, &c2Writer);
-  client_send(client2, c2MatchedMessage);
+  message = message_create_from_writer(kOnMatchTag, &c2Writer);
+  client_send(client2, message);
   
-  message_destroy(c2MatchedMessage);
+  message_delete(message);
 
   return chat;
+}
+
+void chat_delete(chat_t* chat)
+{
+  if(chat == NULL) {
+    return;
+  }
+
+  free(chat);
 }
 
 int32_t chat_is_over(chat_t* chat)

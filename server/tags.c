@@ -24,3 +24,5 @@ const int16_t kRejectSentMessageTag = 13;
 
 const int16_t kLeaveRoomTag = 14;
 const int16_t kLeaveChatTag = 15;
+
+const int16_t kChatTimeoutTag = 16;
