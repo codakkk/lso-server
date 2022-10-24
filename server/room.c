@@ -243,7 +243,6 @@ void *room_update(void *arg)
 
       if(chat_is_over(chat))
       {
-        chat_delete(chat);
         room->chats[i] = NULL;
 
         message_t* message = message_create_empty(kChatTimeoutTag);
@@ -252,6 +251,14 @@ void *room_update(void *arg)
         client_send(chat->client2, message);
         
         message_delete(message);
+
+        chat->client1->current_chat = NULL;
+        chat->client2->current_chat = NULL;
+
+        chat->client1->last_match = chat->client2;
+        chat->client2->last_match = chat->client1;
+
+        chat_delete(chat);
       }
     }
 

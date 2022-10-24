@@ -16,15 +16,11 @@ chat_t* chat_create(client_t* client1, client_t* client2)
   chat->client2 = client2;
   chat->start_timestamp = (int64_t)time(NULL);
 
-  printf("Timestamp: %d\n", chat->start_timestamp);
-
   // Send message to c1
   lso_writer_t writer;
   lso_writer_initialize(&writer, 8);
   lso_writer_write_int32(&writer, client2->uid);
   lso_writer_write_string(&writer, client2->name);
-  lso_writer_write_int64(&writer, chat->start_timestamp);
-  lso_writer_write_int64(&writer, chat->start_timestamp + MAX_CHAT_TIME_IN_SECONDS);
   lso_writer_write_int32(&writer, MAX_CHAT_TIME_IN_SECONDS);
 
   message_t* message = message_create_from_writer(kOnMatchTag, &writer);
@@ -37,8 +33,6 @@ chat_t* chat_create(client_t* client1, client_t* client2)
   lso_writer_initialize(&c2Writer, 8);
   lso_writer_write_int32(&c2Writer, client1->uid);
   lso_writer_write_string(&c2Writer, client1->name);
-  lso_writer_write_int64(&c2Writer, chat->start_timestamp);
-  lso_writer_write_int64(&c2Writer, chat->start_timestamp + MAX_CHAT_TIME_IN_SECONDS);
   lso_writer_write_int32(&c2Writer, MAX_CHAT_TIME_IN_SECONDS);
 
   message = message_create_from_writer(kOnMatchTag, &c2Writer);
