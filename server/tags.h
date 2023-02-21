@@ -26,6 +26,13 @@ extern const int16_t kRejectSentMessageTag;
 
 extern const int16_t kLeaveRoomTag;
 
-extern const int16_t kSignUpTag;
-extern const int16_t kSignInTag;
+extern const int16_t kSignUpRequestedTag;
+extern const int16_t kSignUpRejectedTag;
+extern const int16_t kSignUpAcceptedTag;
+
+extern const int16_t kSignInRequestedTag;
+extern const int16_t kSignInAcceptedTag;
+extern const int16_t kSignInRejectedTag;
+
+extern const int16_t kRoomCreateTag;
 #endif

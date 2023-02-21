@@ -11,14 +11,17 @@ typedef struct client_t
 {
     struct sockaddr_in address;
 
-    struct room_t *room;
+    struct room_t* room;
 
     pthread_t thread;
     pthread_mutex_t mutex;
 
     int sockfd;
     int uid;
-    char *name;
+
+    char* name;
+    bool isLogged;
+
 } client_t;
 
 client_t *client_create(struct sockaddr_in address, int connfd);

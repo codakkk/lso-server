@@ -15,6 +15,7 @@
 #include "./room.h"
 #include "client_pool.h"
 #include "utils.h"
+#include "database.h"
 
 #define BUFFER_SZ 2048
 
@@ -25,19 +26,6 @@ void print_client_addr(struct sockaddr_in addr)
            (addr.sin_addr.s_addr & 0xff00) >> 8,
            (addr.sin_addr.s_addr & 0xff0000) >> 16,
            (addr.sin_addr.s_addr & 0xff000000) >> 24);
-}
-
-
-
-
-void create_rooms()
-{
-    printf("Generating rooms...\n");
-    gRooms[0] = room_create("Aldo, Giovanni e Giacomo");
-    gRooms[1] = room_create("Sport");
-    gRooms[2] = room_create("Barzellette!");
-
-    printf("Rooms generated.\n");
 }
 
 int main(int argc, char **argv)
@@ -135,14 +123,13 @@ int main(int argc, char **argv)
     }
 
     printf("Multi-Chat created by Ciro Carandente for LSO\n");
-    create_rooms();
 
     while (1)
     {
         struct sockaddr_in cli_addr;
         socklen_t clilen = sizeof(cli_addr);
-        int connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
 
+        int connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
         /* Check if max clients is reached */
         if (client_pool_is_full())
         {

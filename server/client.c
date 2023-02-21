@@ -7,6 +7,7 @@
 #include "lso_reader.h"
 #include "lso_writer.h"
 #include "tags.h"
+#include "database.h"
 
 #include <unistd.h>
 #include <stdbool.h>
@@ -23,7 +24,7 @@ client_t* client_create(struct sockaddr_in address, int connfd)
   cli->address = address;
   cli->sockfd = connfd;
   cli->uid = counter_client++;
-
+  cli->isLogged = false;
   cli->room = NULL;
 
   pthread_mutex_init(&cli->mutex, NULL);
@@ -39,18 +40,6 @@ void client_lock(client_t *client)
 void client_unlock(client_t *client)
 {
   pthread_mutex_unlock(&client->mutex);
-}
-
-void _handle_first_configuration_tag(client_t *client, lso_reader_t *reader)
-{
-  lso_reader_read_string(reader, &client->name);
-
-  message_t *message = message_create_empty(FirstConfigurationAcceptedTag);
-  client_send(client, message);
-
-  message_delete(message);
-
-  printf("%s has joined the server\n", client->name);
 }
 
 void _handle_request_rooms_tag(client_t *client)
@@ -155,21 +144,68 @@ void _handle_sign_up_tag(struct client_t* client, lso_reader_t* reader)
 
   lso_reader_read_string(reader, &name);
   lso_reader_read_string(reader, &password);  
+
+  if(database_new_user(name, password))
+  {
+    printf("Account %s created successfully\n", name);
+
+    message_t* message = message_create_empty(kSignUpAcceptedTag);
+    client_send(client, message);
+
+    message_delete(message);
+  }
+  else 
+  {
+    printf("Account %s not created. Username already in use.\n", name);
+
+    message_t* message = message_create_empty(kSignUpRejectedTag);
+    client_send(client, message);
+
+    message_delete(message);
+  }
 }
 
 void _handle_sign_in_tag(struct client_t* client, lso_reader_t* reader) 
 {
+  printf("Handling signin message\n");
 
+  char* username;
+  char* password;
+  lso_reader_read_string(reader, &username);
+  lso_reader_read_string(reader, &password);
+
+  printf("Trying to log-in user %s with password %s\n", username, password);
+
+  if(database_user_login(username, password))
+  {
+    printf("User %s logged successfully\n", username);
+    
+    client->name = username;
+    client->isLogged = true;
+
+    message_t* message = message_create_empty(kSignInAcceptedTag);
+    client_send(client, message);
+
+    message_delete(message);
+  }
+  else
+  {
+    printf("User %s login failed\n", username);
+    
+    strcpy(client->name, "");
+    client->isLogged = false;
+
+    message_t* message = message_create_empty(kSignInRejectedTag);
+    client_send(client, message);
+
+    message_delete(message);
+  }
 }
 
 void _on_message_received(client_t *client, message_t *message)
 {
   lso_reader_t *reader = message_to_reader(message);
-  if (message->tag == SendFirstConfigurationTag)
-  {
-    _handle_first_configuration_tag(client, reader);
-  }
-  else if (message->tag == RequestRoomsTag)
+  if (message->tag == RequestRoomsTag)
   {
     _handle_request_rooms_tag(client);
   }
@@ -185,11 +221,11 @@ void _on_message_received(client_t *client, message_t *message)
   {
     room_leave(client->room, client);
   }
-  else if(message->tag == kSignUpTag)
+  else if(message->tag == kSignUpRequestedTag)
   {
     _handle_sign_up_tag(client, reader);
   }
-  else if(message->tag == kSignInTag)
+  else if(message->tag == kSignInRequestedTag)
   {
     _handle_sign_in_tag(client, reader);
   }
@@ -207,11 +243,7 @@ void* _client_handler(void *args)
     return NULL;
   }
 
-  // Send a message to the client
-  // saying that he can now send messages
-
-  message_t *acceptedMessage = message_create_empty(JoinRequestAcceptedTag);
-  client_send(client, acceptedMessage);
+  printf("New user thread \n");
 
   int8_t msgBuffer[BUFFER_SIZE];
   bool leaveFlag = false;
@@ -219,7 +251,6 @@ void* _client_handler(void *args)
   while (!leaveFlag)
   {
     int32_t size = read(client->sockfd, msgBuffer, BUFFER_SIZE - 1);
-
     if (size == 0)
     {
       leaveFlag = true;

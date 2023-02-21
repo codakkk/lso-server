@@ -22,5 +22,12 @@ const int16_t kRejectSentMessageTag = 13;
 
 const int16_t kLeaveRoomTag = 14;
 
-const int16_t kSignUpTag = 200;
-const int16_t kSignInTag = 201;
+const int16_t kSignUpRequestedTag = 20;
+const int16_t kSignUpAcceptedTag = 21;
+const int16_t kSignUpRejectedTag = 22;
+
+const int16_t kSignInRequestedTag = 30;
+const int16_t kSignInAcceptedTag = 31;
+const int16_t kSignInRejectedTag = 32;
+
+const int16_t kRoomCreateTag = 40;
