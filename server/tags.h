@@ -20,12 +20,12 @@ extern const int16_t kJoinRoomTag;
 extern const int16_t kJoinRoomAcceptedTag;
 extern const int16_t kJoinRoomRefusedTag;
 
-extern const int16_t kOnMatchTag;
 extern const int16_t kMessageTag;
 extern const int16_t kConfirmSentMessageTag;
 extern const int16_t kRejectSentMessageTag;
 
 extern const int16_t kLeaveRoomTag;
-extern const int16_t kLeaveChatTag;
-extern const int16_t kChatTimeoutTag;
+
+extern const int16_t kSignUpTag;
+extern const int16_t kSignInTag;
 #endif

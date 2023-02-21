@@ -134,7 +134,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    printf("Chat-Room created by Ciro Carandente, Luca Corteccioni, Giovanni Bruno\n");
+    printf("Multi-Chat created by Ciro Carandente for LSO\n");
     create_rooms();
 
     while (1)

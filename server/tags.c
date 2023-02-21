@@ -16,13 +16,11 @@ const int16_t kJoinRoomTag = 7;
 const int16_t kJoinRoomAcceptedTag = 8;
 const int16_t kJoinRoomRefusedTag = 9;
 
-const int16_t kOnMatchTag = 10;
-
 const int16_t kMessageTag = 11;
 const int16_t kConfirmSentMessageTag = 12;
 const int16_t kRejectSentMessageTag = 13;
 
 const int16_t kLeaveRoomTag = 14;
-const int16_t kLeaveChatTag = 15;
 
-const int16_t kChatTimeoutTag = 16;
+const int16_t kSignUpTag = 200;
+const int16_t kSignInTag = 201;
