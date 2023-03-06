@@ -8,7 +8,7 @@
 
 #include "client.h"
 
-#define MAX_ROOMS 100
+#define MAX_ROOMS 1000
 
 #define MAX_CLIENTS_PER_ROOM 30
 #define MAX_ROOM_NAME 32
@@ -25,7 +25,7 @@ typedef struct room_t
     int32_t id;
     int32_t clientsCount;
 
-    char channelName[MAX_ROOM_NAME];
+    char name[MAX_ROOM_NAME];
 } room_t;
 
 room_t *room_create(char name[MAX_ROOM_NAME]);
@@ -38,4 +38,6 @@ bool room_try_join(room_t *room, client_t *client);
 bool room_leave(room_t *room, client_t *client);
 
 void *room_update(void *arg);
+
+void room_serialize(lso_writer_t* writer, room_t* room);
 #endif

@@ -37,15 +37,18 @@ int find_client_index(room_t *room, client_t *client)
   return index;
 }
 
-room_t *room_create(char name[32])
+room_t* room_create(char name[32])
 {
-  room_t *room = (room_t *)malloc(sizeof(room_t));
+  room_t* room = (room_t *)malloc(sizeof(room_t));
   room->id = counter_room++;
 
   pthread_mutex_init(&room->mutex, NULL);
   pthread_create(&room->tid, NULL, &room_update, (void *)room);
 
-  strcpy(room->channelName, name);
+  strcpy(room->name, name);
+  
+  gRooms[room->id] = room;
+
   return room;
 }
 
@@ -55,6 +58,8 @@ void room_delete(room_t *room)
   {
     return;
   }
+
+  gRooms[room->id] = NULL;
 
   // TODO: remove all clients from room
 
@@ -91,7 +96,7 @@ bool room_try_join(room_t *room, client_t *client)
 
   room_unlock(room);
 
-  printf("%s has joined the room %s\n", client->name, room->channelName);
+  printf("Client id %d has joined the room %s\n", client->uid, room->name);
   return true;
 }
 
@@ -106,6 +111,10 @@ bool room_leave(room_t *room, client_t *client)
   int index = find_client_index(room, client);
   if (index == -1)
   {
+    if(client->room == room)
+    {
+      client->room = NULL;
+    }
     return false;
   }
 
@@ -117,7 +126,27 @@ bool room_leave(room_t *room, client_t *client)
   room_unlock(room);
 
   client->room = NULL;
-  printf("%s left room %s.\n", client->name, room->channelName);
+
+  printf("Notifing clients that client id %d left the room.\n", client->uid);
+
+  lso_writer_t writer;
+  lso_writer_initialize(&writer, 1);
+  lso_writer_write_string(&writer, client->user->name);
+  message_t *message = message_create_from_writer(kLeaveRoomTag, &writer);
+
+  for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
+  {
+    if(room->clients[i] == NULL) {
+      continue;
+    }
+
+    client_send(room->clients[i], message);
+  }
+  
+  message_delete(message);
+
+
+  printf("Client id %d left room %s.\n", client->uid, room->name);
 
   return true;
 }
@@ -132,4 +161,12 @@ void *room_update(void *arg)
   }
 
   room_delete(room);
+}
+
+void room_serialize(lso_writer_t* writer, room_t* room)
+{
+  lso_writer_write_int32(writer, room->id);
+  lso_writer_write_int32(writer, room->clientsCount);
+  lso_writer_write_int32(writer, MAX_CLIENTS_PER_ROOM);
+  lso_writer_write_string(writer, room->name);
 }

@@ -122,7 +122,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    printf("Multi-Chat created by Ciro Carandente for LSO\n");
+    printf("Multi-Chat created by Ciro Carandente & Giovanni Bruno for LSO\n");
 
     while (1)
     {

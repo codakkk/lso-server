@@ -51,27 +51,38 @@ bool database_new_user(char* username, char* password)
   return result == 0;
 }
 
-bool database_user_login(char* username, char* password)
+user_t* database_user_login(char* username, char* password)
 {
   char query[256];
   
-  sprintf(query, "SELECT id FROM users where username='%s' AND password='%s' LIMIT 1", username, password);
+  sprintf(query, "SELECT id, username FROM users where username='%s' AND password='%s' LIMIT 1", username, password);
 
-  bool result = false;
+  user_t* result = NULL;
 
   MYSQL* conn = database_connect();
   int q = mysql_query(conn, query);
-  if(!q)
+  if(q)
   {
-    MYSQL_RES* res = mysql_use_result(conn);
+    fprintf(stderr, "%s\n", mysql_error(conn));
+    result = NULL;
+  }
+  else
+  {
+    MYSQL_RES* res = mysql_store_result(conn);
+    
     int numRows = mysql_num_rows(res);
 
     if(numRows > 0) 
     {
-      result = true;
+      int numFields = mysql_num_fields(res);
+      MYSQL_ROW row = mysql_fetch_row(res);
+
+      result = malloc(sizeof(user_t));
+      result->id = atoi(row[0]);
+      result->name = row[1];
     }
   }
 
   database_close(conn);
-  return true;
+  return result;
 }

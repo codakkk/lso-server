@@ -24,7 +24,8 @@ client_t* client_create(struct sockaddr_in address, int connfd)
   cli->address = address;
   cli->sockfd = connfd;
   cli->uid = counter_client++;
-  cli->isLogged = false;
+
+  cli->user = NULL;
   cli->room = NULL;
 
   pthread_mutex_init(&cli->mutex, NULL);
@@ -45,20 +46,18 @@ void client_unlock(client_t *client)
 void _handle_request_rooms_tag(client_t *client)
 {
   lso_writer_t writer;
-  lso_writer_initialize(&writer, sizeof(4 + 4 + 32));
+  lso_writer_initialize(&writer, 4 + 4 + 4 + 32);
 
   for (int i = 0; i < MAX_ROOMS; ++i)
   {
     room_t *room = gRooms[i];
-    if (room == NULL)
-      continue;
-    lso_writer_write_int32(&writer, room->id);
-    lso_writer_write_int32(&writer, room->clientsCount);
-    lso_writer_write_int32(&writer, MAX_CLIENTS_PER_ROOM);
-    lso_writer_write_string(&writer, room->channelName);
+    
+    if (room == NULL) continue;
+    
+    room_serialize(&writer, room);
   }
 
-  message_t *message = message_create_from_writer(kRoomTag, &writer);
+  message_t *message = message_create_from_writer(kRequestRoomsAcceptedTag, &writer);
   client_send(client, message);
 
   message_delete(message);
@@ -75,7 +74,7 @@ void _handle_join_room_tag(client_t *client, lso_reader_t *reader)
     {
       lso_writer_t writer;
       lso_writer_initialize(&writer, 4);
-      lso_writer_write_int32(&writer, roomId);
+      room_serialize(&writer, room);
 
       message_t *joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
       client_send(client, joinAcceptedMessage);
@@ -86,7 +85,7 @@ void _handle_join_room_tag(client_t *client, lso_reader_t *reader)
     {
       lso_writer_t writer;
       lso_writer_initialize(&writer, 4);
-      lso_writer_write_int32(&writer, roomId);
+      room_serialize(&writer, room);
 
       message_t *joinRoomRefusedMessage = message_create_from_writer(kJoinRoomRefusedTag, &writer);
       client_send(client, joinRoomRefusedMessage);
@@ -108,17 +107,18 @@ void _handle_message_tag(client_t* client, lso_reader_t* reader)
 
     message_delete(message);
 
-    printf("Rejecting message from client %s", client->name);
+    printf("Rejecting message from client %d", client->uid);
     return;
   }
 
-  char *messageText;
+  char* messageText;
   int messageLength = lso_reader_read_string(reader, &messageText);
-  printf("Client %s sent message \"%s\".\n", client->name, messageText);
+  printf("Client id %d sent message \"%s\".\n", client->uid, messageText);
 
   lso_writer_t writer;
   lso_writer_initialize(&writer, messageLength);
-  lso_writer_write_string(&writer, client->name);
+  lso_writer_write_int32(&writer, client->uid);
+  lso_writer_write_string(&writer, client->user->name);
   lso_writer_write_string(&writer, messageText);
 
   message_t* message = message_create_from_writer(kMessageTag, &writer);
@@ -175,25 +175,32 @@ void _handle_sign_in_tag(struct client_t* client, lso_reader_t* reader)
   lso_reader_read_string(reader, &password);
 
   printf("Trying to log-in user %s with password %s\n", username, password);
-
-  if(database_user_login(username, password))
+  
+  user_t* user = database_user_login(username, password);
+  if(user != NULL)
   {
     printf("User %s logged successfully\n", username);
     
-    client->name = username;
-    client->isLogged = true;
+    client->user = user;
 
-    message_t* message = message_create_empty(kSignInAcceptedTag);
+    lso_writer_t writer;
+    lso_writer_initialize(&writer, 4);
+    lso_writer_write_int32(&writer, client->uid);
+
+    message_t* message = message_create_from_writer(kSignInAcceptedTag, &writer);
     client_send(client, message);
 
     message_delete(message);
   }
   else
   {
-    printf("User %s login failed\n", username);
+    printf("Client id %d login failed with username: %s\n", client->uid, username);
     
-    strcpy(client->name, "");
-    client->isLogged = false;
+    if(client->user != NULL) {
+      free(client->user);
+    }
+
+    client->user = NULL;
 
     message_t* message = message_create_empty(kSignInRejectedTag);
     client_send(client, message);
@@ -202,10 +209,59 @@ void _handle_sign_in_tag(struct client_t* client, lso_reader_t* reader)
   }
 }
 
+void _handle_create_room_tag(struct client_t* client, lso_reader_t* reader)
+{
+  char* roomName;
+  lso_reader_read_string(reader, &roomName);
+
+  room_t* room = room_create(roomName);
+
+  if(room != NULL)
+  {
+    printf("Client id %d created room named %s.\n", client->uid, roomName);
+
+    if(room_try_join(room, client))
+    {
+      lso_writer_t writer;
+      lso_writer_initialize(&writer, 1);
+      room_serialize(&writer, room);
+
+      message_t* message = message_create_from_writer(kRoomCreateAcceptedTag, &writer);
+
+      client_send(client, message);
+
+      message_delete(message);
+    }
+  }
+  else
+  {
+    printf("Client id %d failed creating room named %s.\n", client->uid, roomName);
+
+    message_t* message = message_create_empty(kRoomCreateRejectedTag);
+    client_send(client, message);
+
+    message_delete(message);
+  }
+}
+
+void _handle_leave_room_tag(client_t* client, message_t* message)
+{
+  if(client->room != NULL) 
+  {
+    room_leave(client->room, client);
+  }
+}
+
+
 void _on_message_received(client_t *client, message_t *message)
 {
   lso_reader_t *reader = message_to_reader(message);
-  if (message->tag == RequestRoomsTag)
+
+  if(message->tag == kRoomCreateRequestedTag)
+  {
+    _handle_create_room_tag(client, reader);
+  }
+  else if (message->tag == kRequestRoomsTag)
   {
     _handle_request_rooms_tag(client);
   }
@@ -217,9 +273,9 @@ void _on_message_received(client_t *client, message_t *message)
   {
     _handle_message_tag(client, reader);
   }
-  else if (message->tag == kLeaveRoomTag)
+  else if (message->tag == kLeaveRoomRequestedTag)
   {
-    room_leave(client->room, client);
+    _handle_leave_room_tag(client, message);
   }
   else if(message->tag == kSignUpRequestedTag)
   {
@@ -272,7 +328,13 @@ void* _client_handler(void *args)
 
   room_leave(client->room, client);
 
-  printf("%s left the server\n", client->name);
+  if(client->user != NULL) 
+  {
+    printf("%s left the server\n", client->user->name);
+
+    free(client->user);
+    client->user = NULL;
+  }
 
   client_pool_remove(client);
 
@@ -291,7 +353,7 @@ bool client_send(client_t *client, message_t *message)
 
   // byte_buffer_print_debug(buffer);
 
-  printf("Sending message with tag %d to %s\n", message->tag, client->name);
+  printf("Sending message with tag %d to client id %d\n", message->tag, client->uid);
   if (send(client->sockfd, buffer->buffer, buffer->count, 0) < 0)
   {
     printf("DEBUG: Error sending message with tag: %d\n", message->tag);
@@ -299,4 +361,9 @@ bool client_send(client_t *client, message_t *message)
   }
   byte_buffer_delete(buffer);
   return true;
+}
+
+bool client_is_logged(client_t* client)
+{
+  return client->user != NULL;
 }
