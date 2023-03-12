@@ -10,7 +10,7 @@
 typedef struct 
 {
     int id;
-    char* name;
+    int8_t* name;
 } user_t;
 
 typedef struct client_t
@@ -37,4 +37,6 @@ void *_client_handler(void* args);
 
 bool client_send(client_t* client, message_t* message);
 bool client_is_logged(client_t* client);
+
+void client_serialize(client_t* client, lso_writer_t* writer);
 #endif

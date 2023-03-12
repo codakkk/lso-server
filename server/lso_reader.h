@@ -18,6 +18,6 @@ bool lso_reader_read_bool(lso_reader_t* reader);
 int8_t lso_reader_read_int8(lso_reader_t* reader);
 int16_t lso_reader_read_int16(lso_reader_t* reader);
 int32_t lso_reader_read_int32(lso_reader_t* reader);
-int32_t lso_reader_read_string(lso_reader_t* reader, char** string);
+int32_t lso_reader_read_string(lso_reader_t* reader, int8_t** string);
 
 #endif

@@ -37,17 +37,23 @@ int find_client_index(room_t *room, client_t *client)
   return index;
 }
 
-room_t* room_create(char name[32])
+room_t* room_create(char name[MAX_ROOM_NAME])
 {
   room_t* room = (room_t *)malloc(sizeof(room_t));
   room->id = counter_room++;
 
-  pthread_mutex_init(&room->mutex, NULL);
-  pthread_create(&room->tid, NULL, &room_update, (void *)room);
+  for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
+  {
+    room->clients[i] = NULL;
+  }
 
+  room->clientsCount = 0;
   strcpy(room->name, name);
   
   gRooms[room->id] = room;
+
+  pthread_mutex_init(&room->mutex, NULL);
+  pthread_create(&room->tid, NULL, &room_update, (void *)room);
 
   return room;
 }
@@ -169,4 +175,16 @@ void room_serialize(lso_writer_t* writer, room_t* room)
   lso_writer_write_int32(writer, room->clientsCount);
   lso_writer_write_int32(writer, MAX_CLIENTS_PER_ROOM);
   lso_writer_write_string(writer, room->name);
+
+  for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
+  {
+    client_t* roomClient = room->clients[i];
+
+    if(roomClient == NULL) 
+    {
+      continue;
+    }
+
+    client_serialize(roomClient, writer);
+  }
 }

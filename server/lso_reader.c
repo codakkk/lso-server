@@ -70,7 +70,7 @@ int32_t lso_reader_read_int32(lso_reader_t* reader)
   return v;
 }
 
-int32_t lso_reader_read_string(lso_reader_t* reader, char** string)
+int32_t lso_reader_read_string(lso_reader_t* reader, int8_t** string)
 {
   if(reader->position + 4 > reader->buffer->count)
   {
@@ -79,11 +79,13 @@ int32_t lso_reader_read_string(lso_reader_t* reader, char** string)
 
   int32_t length = read_int32(reader->buffer, reader->buffer->offset + reader->position);
 
-  *string = malloc(sizeof(char) * length);
+  *string = malloc(sizeof(int8_t) * length + 1);
   for(int i = 0; i < length; ++i) 
   {
-    (*string)[i] = read_int8(reader->buffer, reader->buffer->offset + reader->position + 4 + i);
+    (*string)[i] = read_int8(reader->buffer, reader->buffer->offset + 4 + reader->position + i);
   }
+  (*string)[length] = '\0';
+
 
   reader->position += 4 + length;
 

@@ -57,7 +57,7 @@ void _handle_request_rooms_tag(client_t *client)
     room_serialize(&writer, room);
   }
 
-  message_t *message = message_create_from_writer(kRequestRoomsAcceptedTag, &writer);
+  message_t* message = message_create_from_writer(kRequestRoomsAcceptedTag, &writer);
   client_send(client, message);
 
   message_delete(message);
@@ -76,10 +76,25 @@ void _handle_join_room_tag(client_t *client, lso_reader_t *reader)
       lso_writer_initialize(&writer, 4);
       room_serialize(&writer, room);
 
-      message_t *joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
+      message_t* joinAcceptedMessage = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
       client_send(client, joinAcceptedMessage);
 
       message_delete(joinAcceptedMessage);
+
+      lso_writer_initialize(&writer, 4);
+      client_serialize(client, &writer);
+
+      message_t* notifyMessage = message_create_from_writer(kJoinRoomNotifyAcceptedTag, &writer);
+
+      for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i) {
+        client_t* roomClient = room->clients[i];
+        
+        if(roomClient == NULL || roomClient->uid == client->uid) {
+          continue;
+        }
+
+        client_send(roomClient, notifyMessage);
+      }
     }
     else
     {
@@ -111,9 +126,9 @@ void _handle_message_tag(client_t* client, lso_reader_t* reader)
     return;
   }
 
-  char* messageText;
+  int8_t* messageText;
   int messageLength = lso_reader_read_string(reader, &messageText);
-  printf("Client id %d sent message \"%s\".\n", client->uid, messageText);
+  printf("Client id %d (%s) sent message \"%s\" in Room Id %d (%s).\n", client->uid, client->user->name, messageText, room->id, room->name);
 
   lso_writer_t writer;
   lso_writer_initialize(&writer, messageLength);
@@ -121,7 +136,9 @@ void _handle_message_tag(client_t* client, lso_reader_t* reader)
   lso_writer_write_string(&writer, client->user->name);
   lso_writer_write_string(&writer, messageText);
 
+
   message_t* message = message_create_from_writer(kMessageTag, &writer);
+
   for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i) 
   {
     struct client_t* c = room->clients[i];
@@ -139,8 +156,9 @@ void _handle_message_tag(client_t* client, lso_reader_t* reader)
 
 void _handle_sign_up_tag(struct client_t* client, lso_reader_t* reader) 
 {
-  char* name; 
-  char* password;
+  printf("_handle_sign_up_tag\n");
+  int8_t* name; 
+  int8_t* password;
 
   lso_reader_read_string(reader, &name);
   lso_reader_read_string(reader, &password);  
@@ -169,8 +187,8 @@ void _handle_sign_in_tag(struct client_t* client, lso_reader_t* reader)
 {
   printf("Handling signin message\n");
 
-  char* username;
-  char* password;
+  int8_t* username;
+  int8_t* password;
   lso_reader_read_string(reader, &username);
   lso_reader_read_string(reader, &password);
 
@@ -185,7 +203,7 @@ void _handle_sign_in_tag(struct client_t* client, lso_reader_t* reader)
 
     lso_writer_t writer;
     lso_writer_initialize(&writer, 4);
-    lso_writer_write_int32(&writer, client->uid);
+    client_serialize(client, &writer);
 
     message_t* message = message_create_from_writer(kSignInAcceptedTag, &writer);
     client_send(client, message);
@@ -211,7 +229,7 @@ void _handle_sign_in_tag(struct client_t* client, lso_reader_t* reader)
 
 void _handle_create_room_tag(struct client_t* client, lso_reader_t* reader)
 {
-  char* roomName;
+  int8_t* roomName = NULL;
   lso_reader_read_string(reader, &roomName);
 
   room_t* room = room_create(roomName);
@@ -251,7 +269,6 @@ void _handle_leave_room_tag(client_t* client, message_t* message)
     room_leave(client->room, client);
   }
 }
-
 
 void _on_message_received(client_t *client, message_t *message)
 {
@@ -366,4 +383,10 @@ bool client_send(client_t *client, message_t *message)
 bool client_is_logged(client_t* client)
 {
   return client->user != NULL;
+}
+
+void client_serialize(client_t* client, lso_writer_t* writer)
+{
+  lso_writer_write_int32(writer, client->uid);
+  lso_writer_write_string(writer, client->user->name);
 }

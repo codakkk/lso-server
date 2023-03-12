@@ -9,14 +9,14 @@
 MYSQL* database_connect()
 {
   char* server = "Ciro.local";
-  char* user = "ciro";
+  char* user = "root";
   char* password = "ciro";
   char* database = "lso";
   
   MYSQL* conn = mysql_init(NULL);
   
   /* Connect to database */
-  if (!mysql_real_connect(conn, server, user, password, database, 3306, NULL, 0)) {
+  if (!mysql_real_connect(conn, server, user, password, database, 5151, NULL, 0)) {
       fprintf(stderr, "%s\n", mysql_error(conn));
       exit(1);
   }

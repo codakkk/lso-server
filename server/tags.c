@@ -8,6 +8,7 @@ const int16_t kRequestRoomsAcceptedTag = 3;
 const int16_t kJoinRoomTag = 7;
 const int16_t kJoinRoomAcceptedTag = 8;
 const int16_t kJoinRoomRefusedTag = 9;
+const int16_t kJoinRoomNotifyAcceptedTag = 10;
 
 const int16_t kMessageTag = 11;
 const int16_t kRejectSentMessageTag = 13;
