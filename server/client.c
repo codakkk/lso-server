@@ -56,6 +56,18 @@ void handle_join_room_accepted_tag(client_t *client, lso_reader_t *reader)
   int32_t roomId = lso_reader_read_int32(reader);
 
   client_t* requestingClient = client_pool_get(clientId);
+
+	if(requestingClient == NULL)
+	{
+		return;
+	}
+
+	if(requestingClient->room != NULL)
+	{
+		printf("Client %s already in a Room.\n", requestingClient->user.name);
+		return;
+	}
+
   room_t* room = room_get(roomId);
 
 	room_add_client(room, requestingClient);
@@ -178,7 +190,7 @@ void handle_create_room_tag(struct client_t* client, lso_reader_t* reader)
   }
 }
 
-void handle_leave_room_tag(client_t* client, message_t* message)
+void handle_leave_room_tag(client_t* client)
 {
 	room_t* room = client->room;
   if(room != NULL)
@@ -206,6 +218,7 @@ void handle_leave_room_tag(client_t* client, message_t* message)
 
 			printf("[Room %d]: Closed!\n", room->id);
 
+			client->room = NULL;
 			room_delete(room);
 		}
 		else
@@ -252,7 +265,7 @@ void on_message_received(client_t* client, message_t* message)
   }
   else if (message->tag == kLeaveRoomRequestedTag)
   {
-    handle_leave_room_tag(client, message);
+    handle_leave_room_tag(client);
   }
   else if(message->tag == kSignUpRequestedTag)
   {
@@ -302,7 +315,7 @@ void* client_handler(void *args)
 
 	if(client->room != NULL)
 	{
-		room_remove_client(client->room, client);
+		handle_leave_room_tag(client);
 	}
 
   if(client->user.name != NULL)
@@ -343,8 +356,8 @@ bool client_is_logged(client_t* client)
 
 void client_serialize(client_t* client, lso_writer_t* writer)
 {
-  lso_writer_write_int32(writer, client->uid);
-  lso_writer_write_string(writer, client->user.name, 4);
+  lso_writer_write_int32(writer, client->user.id);
+  lso_writer_write_string(writer, client->user.name, strlen(client->user.name));
 }
 
 client_t* client_create(struct sockaddr_in address, int connfd)

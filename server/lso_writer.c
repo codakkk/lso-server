@@ -75,14 +75,14 @@ void lso_writer_write_int64(lso_writer_t* writer, int64_t v)
 
 void lso_writer_write_string(lso_writer_t* writer, int8_t* str, int32_t length)
 {
-	lso_writer_write_int32(writer, length);
+	lso_writer_write_int32(writer, length+1);
 
   for(int i = 0; i < length; ++i)
 	{
 		lso_writer_write_int8(writer, str[i]);
   }
 
-	// lso_writer_write_int8(writer, '\0');
+	lso_writer_write_int8(writer, '\0');
 
   writer->buffer->count = MAX(writer->buffer->count, writer->position);
 }

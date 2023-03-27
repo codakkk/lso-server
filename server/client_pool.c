@@ -40,7 +40,21 @@ int find_index_in_client_pool(client_t* client)
 
 client_t* client_pool_get(int32_t id)
 {
-  return client_pool.clients[id];
+	client_t* client = NULL;
+
+	for(uint32_t i = 0; i < client_pool.size; ++i)
+	{
+		client_t* temp = client_pool.clients[i];
+		if(temp == NULL || temp->user.name == NULL ||  temp->user.id != id)
+		{
+			continue;
+		}
+
+		client = temp;
+		break;
+	}
+
+  return client;
 }
 
 bool client_pool_add(client_t* client)

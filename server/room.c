@@ -113,7 +113,6 @@ void room_add_client(room_t *room, client_t *client)
 		{
 				index = i;
 		}
-
 		else if(roomClient->user.id == client->user.id)
 		{
 			alreadyPresent = true;
