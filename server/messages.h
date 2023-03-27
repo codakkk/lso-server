@@ -1,25 +1,24 @@
+#ifndef H_MESSAGES__
+#define H_MESSAGES__
 
-#ifndef __H_MESSAGES__
-#define __H_MESSAGES__
-
-#include "buffer.h"
-#include "lso_reader.h"
 #include "lso_writer.h"
-#include "utils.h"
+#include "room.h"
+#include "tags.h"
+#include "message.h"
+#include "client.h"
 
-typedef struct {
-  int16_t tag;
-  byte_buffer_t* buffer;
-} message_t;
+/*
+ * Room Messages
+ * */
 
-void message_delete(message_t* buffer);
+message_t* create_request_rooms_accepted_message();
+message_t* create_join_room_accepted_message(room_t* room);
+message_t* create_join_room_notify_accepted_message(client_t* client);
+message_t* create_join_room_refused_message(room_t* room);
+message_t* create_join_room_requested_message(client_t* client);
+message_t* create_leave_room_message(client_t* client);
+message_t* create_room_create_accepted_message(room_t* room);
 
-message_t* message_create_from_writer(int16_t tag, lso_writer_t* writer);
-message_t* message_create_from_byte_buffer(byte_buffer_t* buffer);
-message_t* message_create_empty(int16_t tag);
-
-lso_reader_t* message_to_reader(message_t* message);
-byte_buffer_t* message_to_buffer(message_t* message);
-
+message_t* create_send_message_message(client_t* sender, int8_t* messageText, int32_t messageLength);
 
 #endif

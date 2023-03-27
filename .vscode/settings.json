@@ -34,6 +34,7 @@
     "tags.h": "c",
     "messages.h": "c",
     "socket.h": "c",
-    "chat.h": "c"
+    "chat.h": "c",
+    "database.h": "c"
   }
 }

@@ -13,31 +13,32 @@
 #define MAX_CLIENTS_PER_ROOM 30
 #define MAX_ROOM_NAME 32
 
-extern struct room_t *gRooms[MAX_ROOMS];
+extern struct room_t* gRooms[MAX_ROOMS];
 
 typedef struct room_t
 {
-    pthread_mutex_t mutex;
-    pthread_t tid;
-
-    struct client_t *clients[MAX_CLIENTS_PER_ROOM];
+    client_t* clients[MAX_CLIENTS_PER_ROOM];
 
     int32_t id;
     int32_t clientsCount;
 
-    char name[MAX_ROOM_NAME];
+    int8_t name[MAX_ROOM_NAME];
+
+    client_t* owner;
+
+		pthread_mutex_t mutex;
 } room_t;
 
-room_t *room_create(char name[MAX_ROOM_NAME]);
+room_t* room_create(int8_t name[MAX_ROOM_NAME]);
 void room_delete(room_t *room);
 
-void room_lock(room_t *room);
-void room_unlock(room_t *room);
+room_t* room_get(int32_t id);
 
-bool room_try_join(room_t *room, client_t *client);
-bool room_leave(room_t *room, client_t *client);
+void room_send_message(room_t* room, message_t* message);
+bool room_is_full(room_t* room);
 
-void *room_update(void *arg);
+void room_add_client(room_t *room, client_t *client);
+bool room_remove_client(room_t *room, client_t *client);
 
 void room_serialize(lso_writer_t* writer, room_t* room);
 #endif

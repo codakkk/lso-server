@@ -5,10 +5,8 @@
 
 #include "client.h"
 
-MYSQL* database_connect();
-void database_close(MYSQL* c);
+void database_connect();
 
-
-bool database_new_user(char* username, char* password);
-user_t* database_user_login(char* username, char* password);
+bool database_new_user(int8_t* username, int8_t* password);
+bool database_user_login(client_t* client, int8_t* username, int8_t* password);
 #endif

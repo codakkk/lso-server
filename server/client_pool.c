@@ -38,6 +38,11 @@ int find_index_in_client_pool(client_t* client)
   return index;
 }
 
+client_t* client_pool_get(int32_t id)
+{
+  return client_pool.clients[id];
+}
+
 bool client_pool_add(client_t* client)
 {
   if(client == NULL) return false;
@@ -85,10 +90,8 @@ bool client_pool_is_full()
 void client_pool_lock()
 {
   pthread_mutex_lock(&client_pool.mutex);
-  printf("client_pool_locked\n");
 }
 void client_pool_unlock()
 {
   pthread_mutex_unlock(&client_pool.mutex);
-  printf("client_pool_unlocked\n");
 }

@@ -1,78 +1,109 @@
 #include "messages.h"
-#include "buffer.h"
-#include "utils.h"
-#include "lso_reader.h"
-#include <stdlib.h>
+#include "lso_writer.h"
+#include "room.h"
+#include "tags.h"
+#include "message.h"
+#include "client.h"
 #include <string.h>
 
-void message_delete(message_t* message)
+message_t* create_request_rooms_accepted_message()
 {
-  if(message == NULL) {
-    return;
-  }
+	lso_writer_t writer;
+	lso_writer_initialize(&writer, 1);
 
-  if(message->buffer != NULL) 
-  {
-    byte_buffer_delete(message->buffer);
-    message->buffer = NULL;
-  }
+	for (int i = 0; i < MAX_ROOMS; ++i)
+	{
+		room_t* room = gRooms[i];
 
-  free(message);
+		if (room == NULL)
+			continue;
+
+		room_serialize(&writer, room);
+	}
+
+	message_t* message = message_create_from_writer(kRequestRoomsAcceptedTag, &writer);
+
+	// lso_writer_destroy(&writer);
+	return message;
 }
 
-message_t* message_create_from_writer(int16_t tag, lso_writer_t* writer)
+message_t* create_join_room_accepted_message(room_t* room)
 {
-  message_t* message = malloc(sizeof(message_t));
+	lso_writer_t writer;
+	lso_writer_initialize(&writer, 1);
+	room_serialize(&writer, room);
 
-  message->tag = tag;
-  message->buffer = lso_writer_to_byte_buffer(writer);
-  return message;
+	message_t* message = message_create_from_writer(kJoinRoomAcceptedTag, &writer);
+	// lso_writer_destroy(&writer);
+
+	return message;
 }
 
-message_t* message_create_from_byte_buffer(byte_buffer_t* buffer)
+message_t* create_join_room_notify_accepted_message(client_t* client)
 {
-  message_t* message = malloc(sizeof(message_t));
-  
-  message->buffer = byte_buffer_clone(buffer);
+	lso_writer_t writer;
+	lso_writer_initialize(&writer, 1);
+	client_serialize(client, &writer);
 
-  int32_t headerSize = 2;
-  // We offset by headerSize because there's tag header payload (headerSize byte)
-  message->buffer->offset = buffer->offset + headerSize;
-  message->buffer->count = message->buffer->count - headerSize;
+	message_t* message = message_create_from_writer(kJoinRoomNotifyAcceptedTag, &writer);
 
-  message->tag = read_int16(buffer, buffer->offset);
+	// lso_writer_destroy(&writer);
 
-  return message;
+	return message;
 }
 
-message_t* message_create_empty(int16_t tag)
+message_t* create_join_room_refused_message(room_t* room)
 {
-  message_t* message = malloc(sizeof(message_t));
-  message->buffer = byte_buffer_create(0);
-  message->tag = tag;
-
-  return message;
+	message_t *message = message_create_empty(kJoinRoomRefusedTag);
+	return message;
 }
 
-lso_reader_t* message_to_reader(message_t* message)
+message_t* create_join_room_requested_message(client_t* client)
 {
-  return lso_reader_create(message->buffer);
+	lso_writer_t writer;
+	lso_writer_initialize(&writer, 1);
+	client_serialize(client, &writer);
+
+	message_t* msg = message_create_from_writer(kJoinRoomRequestedTag, &writer);
+	// lso_writer_destroy(&writer);
+
+	return msg;
 }
 
-byte_buffer_t* message_to_buffer(message_t* message)
+message_t* create_leave_room_message(client_t* client)
 {
-  int32_t headerLength = 2;
-  int32_t totalLength = message->buffer->count + headerLength;
+	lso_writer_t writer;
+	lso_writer_initialize(&writer, 1);
+	client_serialize(client, &writer);
+	message_t *message = message_create_from_writer(kLeaveRoomTag, &writer);
 
-  byte_buffer_t* buffer = byte_buffer_create(totalLength);
-  buffer->count = totalLength;
+	// lso_writer_destroy(&writer);
 
-  write_int16(buffer, 0, message->tag);
+	return message;
+}
 
-  for(int i = 0; i < message->buffer->count; ++i) {
-    buffer->buffer[headerLength+i] = message->buffer->buffer[i];
-  }
+message_t* create_send_message_message(client_t* sender, int8_t* messageText, int32_t messageLength)
+{
+	lso_writer_t writer;
+	lso_writer_initialize(&writer, messageLength);
+	client_serialize(sender, &writer);
+	lso_writer_write_string(&writer, messageText, messageLength);
 
-  //memcpy(buffer->buffer + buffer->buffer->offset + 2, message->buffer, message->buffer->count);
-  return buffer;
+	message_t* msg = message_create_from_writer(kMessageReceivedTag, &writer);
+	// lso_writer_destroy(&writer);
+
+	return msg;
+}
+
+message_t* create_room_create_accepted_message(room_t* room)
+{
+	lso_writer_t writer;
+	lso_writer_initialize(&writer, 1);
+	room_serialize(&writer, room);
+
+	message_t* message = message_create_from_writer(kRoomCreateAcceptedTag, &writer);
+
+	// lso_writer_destroy(&writer);
+
+	return message;
 }

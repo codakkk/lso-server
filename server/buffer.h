@@ -1,9 +1,9 @@
 
-#ifndef __H_BUFFER__
-#define __H_BUFFER__
+#ifndef __H_DBUFFER__
+#define __H_DBUFFER__
 #include <stdint.h>
 
-typedef struct {
+typedef struct byte_buffer_t {
   int8_t* buffer;
 
   int32_t capacity;

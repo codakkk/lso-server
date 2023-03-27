@@ -19,6 +19,6 @@ void lso_writer_write_int16(lso_writer_t* writer, int16_t v);
 void lso_writer_write_int32(lso_writer_t* writer, int32_t v);
 void lso_writer_write_int64(lso_writer_t* writer, int64_t v);
 
-void lso_writer_write_string(lso_writer_t* writer, char* str);
+void lso_writer_write_string(lso_writer_t* writer, int8_t* str, int32_t length);
 byte_buffer_t* lso_writer_to_byte_buffer(lso_writer_t* writer);
 #endif

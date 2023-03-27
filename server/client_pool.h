@@ -18,6 +18,8 @@ bool client_pool_add(client_t* cl);
 bool client_pool_remove(client_t* cl);
 bool client_pool_is_full();
 
+client_t* client_pool_get(int32_t id);
+
 void client_pool_lock();
 void client_pool_unlock();
 #endif

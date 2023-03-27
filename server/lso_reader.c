@@ -15,10 +15,17 @@ lso_reader_t* lso_reader_create(byte_buffer_t* buffer)
 
 void lso_reader_delete(lso_reader_t* reader)
 {
-  if(reader == NULL) {
+  if(reader == NULL)
+	{
     return;
   }
 
+	// TODO(ciro): follow this crash
+	/*if(reader->buffer != NULL)
+	{
+		byte_buffer_delete(reader->buffer);
+		reader->buffer = NULL;
+	}*/
   free(reader);
 }
 

@@ -2,6 +2,7 @@
 #include "utils.h"
 
 #include <string.h>
+#include <stdio.h>
 
 
 void lso_writer_initialize(lso_writer_t* writer, int minLength)
@@ -10,17 +11,18 @@ void lso_writer_initialize(lso_writer_t* writer, int minLength)
   writer->buffer = byte_buffer_create(minLength);
 }
 
-/* 
+/*
   This destroys only internal structure.
    Free should be called on writer if it's dynamically allocated
 */
 void lso_writer_destroy(lso_writer_t* writer)
 {
-  if(writer->buffer != NULL)
-  {
-    byte_buffer_delete(writer->buffer);
-    writer->buffer = NULL;
-  }
+	if(writer->buffer == NULL)
+	{
+		return;
+	}
+	byte_buffer_delete(writer->buffer);
+	writer->buffer = NULL;
 }
 
 void lso_writer_write_bool(lso_writer_t* writer, bool v)
@@ -71,17 +73,16 @@ void lso_writer_write_int64(lso_writer_t* writer, int64_t v)
   writer->buffer->count = MAX(writer->buffer->count, writer->position);
 }
 
-void lso_writer_write_string(lso_writer_t* writer, char* str)
+void lso_writer_write_string(lso_writer_t* writer, int8_t* str, int32_t length)
 {
-  byte_buffer_ensure_size(writer->buffer, writer->position + sizeof(int32_t) + strlen(str));
+	lso_writer_write_int32(writer, length);
 
-  write_int32(writer->buffer, writer->position, strlen(str));
-
-  for(int i = 0; i < strlen(str); ++i) {
-    write_int8(writer->buffer, writer->position + 4 + i, str[i]);
+  for(int i = 0; i < length; ++i)
+	{
+		lso_writer_write_int8(writer, str[i]);
   }
 
-  writer->position += 4 + strlen(str);
+	// lso_writer_write_int8(writer, '\0');
 
   writer->buffer->count = MAX(writer->buffer->count, writer->position);
 }

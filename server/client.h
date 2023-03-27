@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "messages.h"
+#include "message.h"
+
+#define MAX_USER_NAME 32
 
 typedef struct 
 {
@@ -25,15 +27,10 @@ typedef struct client_t
     int sockfd;
     int32_t uid;
 
-    user_t* user;
+    user_t user;
 } client_t;
 
 client_t *client_create(struct sockaddr_in address, int connfd);
-
-void client_lock(client_t* client);
-void client_unlock(client_t* client);
-
-void *_client_handler(void* args);
 
 bool client_send(client_t* client, message_t* message);
 bool client_is_logged(client_t* client);

@@ -1,0 +1,3 @@
+/home/ciro/lso-server/cmake-build-debug/CMakeFiles/lso_server.dir
+/home/ciro/lso-server/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/ciro/lso-server/cmake-build-debug/CMakeFiles/rebuild_cache.dir

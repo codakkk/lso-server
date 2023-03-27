@@ -1,6 +1,7 @@
 #include "room.h"
 #include "client.h"
 #include "tags.h"
+#include "messages.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -9,22 +10,9 @@
 int counter_room = 0;
 room_t *gRooms[MAX_ROOMS];
 
-int find_index(room_t *room)
+int room_find_client_index(room_t *room, client_t *client)
 {
-  int index = -1;
-  for (int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
-  {
-    if (!room->clients[i])
-    {
-      index = i;
-      break;
-    }
-  }
-  return index;
-}
-
-int find_client_index(room_t *room, client_t *client)
-{
+	pthread_mutex_lock(&room->mutex);
   int index = -1;
   for (int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
   {
@@ -34,12 +22,13 @@ int find_client_index(room_t *room, client_t *client)
     index = i;
     break;
   }
+	pthread_mutex_unlock(&room->mutex);
   return index;
 }
 
-room_t* room_create(char name[MAX_ROOM_NAME])
+room_t* room_create(int8_t name[MAX_ROOM_NAME])
 {
-  room_t* room = (room_t *)malloc(sizeof(room_t));
+  room_t* room = (room_t*) malloc(sizeof(room_t));
   room->id = counter_room++;
 
   for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
@@ -52,9 +41,7 @@ room_t* room_create(char name[MAX_ROOM_NAME])
   
   gRooms[room->id] = room;
 
-  pthread_mutex_init(&room->mutex, NULL);
-  pthread_create(&room->tid, NULL, &room_update, (void *)room);
-
+	pthread_mutex_init(&room->mutex, NULL);
   return room;
 }
 
@@ -67,54 +54,101 @@ void room_delete(room_t *room)
 
   gRooms[room->id] = NULL;
 
-  // TODO: remove all clients from room
+  // TODO(gio): remove all clients from room
 
   free(room);
 }
 
-void room_lock(room_t *room)
+room_t* room_get(int32_t id)
 {
-  pthread_mutex_lock(&room->mutex);
+  return gRooms[id];
 }
 
-void room_unlock(room_t *room)
+void room_send_message(room_t* room, message_t* message)
 {
-  pthread_mutex_unlock(&room->mutex);
-}
-
-/* Add clients to room */
-bool room_try_join(room_t *room, client_t *client)
-{
-  int index = find_index(room);
-
-  // Room is full
-  if (index == -1)
+	pthread_mutex_lock(&room->mutex);
+	for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
   {
+    client_t* roomClient = room->clients[i];
+    
+    if(roomClient == NULL) 
+    {
+      continue;
+    }
+
+    client_send(roomClient, message);
+  }
+	pthread_mutex_unlock(&room->mutex);
+}
+
+bool room_is_full(room_t* room)
+{
+  if(room == NULL)
+  {
+    printf("UNDEFINED BEHAVIOUR: Called room_is_full on NULL Room.\n");
     return false;
   }
 
-  room_lock(room);
+  if(room->clientsCount == MAX_CLIENTS_PER_ROOM)
+  {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Adds @client to @room
+ * Returns -1 if room is full, >= 0 otherwise
+ * 
+*/
+void room_add_client(room_t *room, client_t *client)
+{
+	int index = -1;
+	bool alreadyPresent = false;
+	for (int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
+	{
+		client_t* roomClient = room->clients[i];
+		if (roomClient == NULL)
+		{
+				index = i;
+		}
+
+		else if(roomClient->user.id == client->user.id)
+		{
+			alreadyPresent = true;
+		}
+	}
+
+  // Room is full
+  if (index == -1 || (alreadyPresent && client->room->id == room->id))
+  {
+    return;
+  }
+
+	pthread_mutex_lock(&room->mutex);
 
   room->clients[index] = client;
   room->clientsCount++;
 
-  client->room = room;
+	pthread_mutex_unlock(&room->mutex);
 
-  room_unlock(room);
+	pthread_mutex_lock(&client->mutex);
+  client->room = room;
+	pthread_mutex_unlock(&client->mutex);
 
   printf("Client id %d has joined the room %s\n", client->uid, room->name);
-  return true;
 }
 
 /* Remove client from room */
-bool room_leave(room_t *room, client_t *client)
+bool room_remove_client(room_t *room, client_t *client)
 {
   if (room == NULL)
   {
     return false;
   }
 
-  int index = find_client_index(room, client);
+  int index = room_find_client_index(room, client);
   if (index == -1)
   {
     if(client->room == room)
@@ -124,57 +158,25 @@ bool room_leave(room_t *room, client_t *client)
     return false;
   }
 
-  room_lock(room);
-
+	pthread_mutex_lock(&room->mutex);
   room->clients[index] = NULL;
   room->clientsCount--;
+	pthread_mutex_unlock(&room->mutex);
 
-  room_unlock(room);
-
+	pthread_mutex_lock(&client->mutex);
   client->room = NULL;
-
-  printf("Notifing clients that client id %d left the room.\n", client->uid);
-
-  lso_writer_t writer;
-  lso_writer_initialize(&writer, 1);
-  lso_writer_write_string(&writer, client->user->name);
-  message_t *message = message_create_from_writer(kLeaveRoomTag, &writer);
-
-  for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
-  {
-    if(room->clients[i] == NULL) {
-      continue;
-    }
-
-    client_send(room->clients[i], message);
-  }
-  
-  message_delete(message);
-
-
-  printf("Client id %d left room %s.\n", client->uid, room->name);
-
+	pthread_mutex_unlock(&client->mutex);
   return true;
-}
-
-void *room_update(void *arg)
-{
-  room_t *room = (room_t *)arg;
-
-  while (1)
-  {
-    sleep(1);
-  }
-
-  room_delete(room);
 }
 
 void room_serialize(lso_writer_t* writer, room_t* room)
 {
+	pthread_mutex_lock(&room->mutex);
   lso_writer_write_int32(writer, room->id);
   lso_writer_write_int32(writer, room->clientsCount);
   lso_writer_write_int32(writer, MAX_CLIENTS_PER_ROOM);
-  lso_writer_write_string(writer, room->name);
+  lso_writer_write_string(writer, room->name, strlen(room->name));
+  client_serialize(room->owner, writer);
 
   for(int i = 0; i < MAX_CLIENTS_PER_ROOM; ++i)
   {
@@ -187,4 +189,6 @@ void room_serialize(lso_writer_t* writer, room_t* room)
 
     client_serialize(roomClient, writer);
   }
+
+	pthread_mutex_unlock(&room->mutex);
 }
