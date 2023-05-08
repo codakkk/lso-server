@@ -18,7 +18,7 @@ void database_connect()
 	}
 
   /* Connect to database */
-  if (!mysql_real_connect(conn, "3.68.193.240", "postgres", "cirociro", "lso", 5432, NULL, 0)) {
+  if (!mysql_real_connect(conn, "database-1.cphr8omqtdrb.eu-central-1.rds.amazonaws.com", "postgres", "cirociro", "lso", 5432, NULL, 0)) {
   //if (!mysql_real_connect(conn, "Ciro.local", "root", "ciro", "lso", 5151, NULL, 0)) {
       fprintf(stderr, "%s\n", mysql_error(conn));
       exit(1);
