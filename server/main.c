@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 {
     if (argc != 2)
     {
-        printf("64 bits test: \n");
+        /*printf("64 bits test: \n");
 
         lso_writer_t writer;
         lso_writer_initialize(&writer, 8);
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 				lso_writer_initialize(&w, 1);
 				lso_writer_write_string(&w,  "we", 2);
 
-				lso_writer_destroy(&w);
+				lso_writer_destroy(&w);*/
         printf("Usage: %s <port>\n", argv[0]);
         return EXIT_FAILURE;
     }
